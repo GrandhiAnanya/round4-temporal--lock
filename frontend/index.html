@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Temporal Lock · Round 04 · The Lost Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06050c; --panel:#0c0a18; --panel-2:#130f26; --line:#241b44; --line-2:#3b2d73;
+  --text:#f0ecff; --muted:#9d96c2; --cyan:#b8ff3c; --pink:#9d6bff; --ok:#46f0c8; --bad:#ff4d6d;
+  --display:'Orbitron','Eurostile','Bank Gothic','Segoe UI',system-ui,sans-serif;
+  --body:'Chakra Petch','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg)}
+body{
+  min-height:100vh; color:var(--text); font-family:var(--body); font-size:16px; line-height:1.55;
+  background:
+    radial-gradient(900px 500px at 78% -10%, rgba(184,255,60,.10), transparent 60%),
+    radial-gradient(700px 420px at -5% 110%, rgba(157,107,255,.07), transparent 60%),
+    linear-gradient(rgba(184,255,60,.035) 1px, transparent 1px) 0 0/48px 48px,
+    linear-gradient(90deg, rgba(184,255,60,.035) 1px, transparent 1px) 0 0/48px 48px,
+    var(--bg);
+}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+button,input{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* top bar */
+.bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);background:rgba(5,6,13,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
+.brand{font-family:var(--display);font-weight:700;font-size:.95rem;letter-spacing:.04em}
+.brand span{color:var(--cyan)}
+.meta{color:var(--muted);font-size:.82rem}
+.spacer{flex:1}
+.chip{border:1px solid var(--line-2);padding:5px 12px;font-size:.82rem;color:var(--muted);background:var(--panel)}
+.chip b{color:var(--text);font-weight:600}
+.timer{font-family:var(--display);font-size:.95rem;color:var(--cyan);text-align:right;font-variant-numeric:tabular-nums}
+.timer::before{content:"Time left";font-family:var(--body);font-size:.62rem;color:var(--muted);margin-right:10px;letter-spacing:.1em}
+.timer.low{color:var(--bad);text-shadow:0 0 12px rgba(255,77,109,.6);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.45}}
+.net{font-size:.78rem;padding:4px 10px;border:1px solid var(--line-2);color:var(--muted)}
+.net.ok{color:var(--ok);border-color:rgba(70,240,200,.4)}
+.net.warn{color:#ffc65c;border-color:rgba(255,198,92,.5)}
+
+main{max-width:1120px;margin:0 auto;padding:clamp(24px,5vw,56px) clamp(16px,4vw,40px) 80px}
+h1,h2,h3{font-family:var(--display);line-height:1.12;font-weight:900}
+.hero-title{font-size:clamp(2.2rem,7vw,4.6rem);letter-spacing:-.01em}
+.hero-title em{font-style:normal;color:var(--cyan)}
+.lede{color:var(--muted);max-width:56ch;margin-top:18px}
+.tag{font-size:.78rem;color:var(--cyan);letter-spacing:.06em}
+.stamp{display:inline-block;border:1px solid var(--pink);color:var(--pink);padding:6px 14px;font-family:var(--display);font-size:.72rem;transform:rotate(-3deg);margin-bottom:22px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border:0;cursor:pointer;background:var(--pink);color:#fff;font-weight:600;font-size:.9rem;letter-spacing:.02em;transition:filter .15s,transform .15s}
+.btn:hover{filter:brightness(1.12)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;border:1px solid var(--line-2);color:var(--text)}
+.btn.cyan{background:var(--cyan);color:#0a1300}
+
+/* login */
+.login{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,64px);align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);padding:clamp(20px,3vw,32px);position:relative}
+.card::before{content:"";position:absolute;inset:0 auto auto 0;width:44px;height:2px;background:var(--cyan)}
+label{display:block;font-size:.85rem;color:var(--muted);margin:18px 0 6px}
+input[type=text],input[type=password]{width:100%;padding:13px 14px;background:#07050f;border:1px solid var(--line-2);color:var(--text);font-size:1rem;border-radius:0}
+input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 0 3px rgba(184,255,60,.16)}
+.help{font-size:.8rem;color:var(--muted);margin-top:6px}
+.err{color:var(--bad);font-size:.88rem;margin-top:12px;min-height:1.3em}
+
+/* briefing */
+.brief ol{margin:22px 0 28px;padding:0;list-style:none;display:grid;gap:0;border:1px solid var(--line)}
+.brief li{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:16px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brief li:last-child{border-bottom:0}
+.brief li i{font-style:normal;font-family:var(--display);color:var(--pink);font-size:.9rem;padding-top:2px}
+.brief b{display:block;font-weight:600}
+.brief span{color:var(--muted);font-size:.92rem}
+.gatekey{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 26px}
+.gatekey div{border:1px solid var(--line-2);padding:8px 14px;background:var(--panel);font-size:.88rem}
+.gatekey b{font-family:var(--display);color:var(--cyan);margin-right:8px;font-size:.8rem}
+
+/* play layout */
+.play{display:grid;grid-template-columns:1fr;gap:clamp(18px,3vw,32px);align-items:start}
+.lockside{display:grid;grid-template-columns:140px 1fr;gap:clamp(16px,3vw,32px);align-items:center;text-align:left;padding-bottom:clamp(16px,3vw,28px);border-bottom:1px solid var(--line)}
+.ring{width:100%;max-width:140px;display:block;margin:0}
+.seg{fill:none;stroke:#241a48;stroke-width:14;transition:stroke .5s}
+.seg.done{stroke:var(--cyan)}
+.seg.current{stroke:var(--pink);animation:pulse 1.8s ease-in-out infinite}
+.ring.open .seg{stroke:var(--pink);animation:none}
+@keyframes pulse{50%{opacity:.45}}
+.ring-q{font-family:var(--display);font-weight:900;font-size:34px;fill:var(--text)}
+.ring-of{font-size:11px;fill:var(--muted)}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.levels div{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;border:1px solid var(--line);padding:8px 12px;background:var(--panel);color:var(--muted)}
+.levels div.on{border-color:var(--cyan);color:var(--text)}
+.levels b{font-weight:600}
+
+.qhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.lvl{font-size:.74rem;padding:3px 10px;border:1px solid currentColor}
+.lvl.easy{color:var(--ok)} .lvl.medium{color:#ffc65c} .lvl.hard{color:var(--pink)}
+.qtitle{font-size:clamp(1.4rem,3.4vw,2.1rem)}
+.story{color:var(--text);margin:14px 0 6px;max-width:62ch}
+.steps{margin:20px 0;padding:0;list-style:none;border-left:2px solid var(--line-2)}
+.steps li{padding:6px 0 6px 18px;color:#ddd6f5}
+.steps .lab{display:block;font-size:.76rem;color:var(--cyan);margin-bottom:1px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);margin:22px 0;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:340px}
+th,td{padding:11px 14px;text-align:center;border-bottom:1px solid var(--line);font-size:.92rem}
+th{font-weight:500;color:var(--muted);background:var(--panel-2);font-size:.8rem}
+tr:last-child td{border-bottom:0}
+td.t{color:var(--muted);width:56px}
+.pill{display:inline-block;min-width:54px;padding:3px 10px;font-size:.78rem;font-weight:600;border:1px solid var(--line-2)}
+.pill.on{color:#0a1300;background:var(--cyan);border-color:var(--cyan)}
+.pill.off{color:var(--muted)}
+th.out,td.out{border-left:1px solid var(--line-2)}
+.bit{display:inline-grid;place-items:center;width:36px;height:34px;border:1px dashed var(--line-2);font-family:var(--display);font-weight:700;color:var(--pink)}
+.bit.f{border-style:solid;border-color:var(--pink)}
+
+.codebox{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.codebox input{flex:1 1 220px;font-family:var(--display);font-size:1.4rem;letter-spacing:.35em;padding:12px 16px;text-align:left}
+.note{font-size:.84rem;color:var(--muted);margin-top:10px}
+.fb{margin-top:14px;min-height:1.5em;font-size:.95rem}
+.fb.bad{color:var(--bad)} .fb.good{color:var(--ok)}
+.shake{animation:shake .4s}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+.hintrow{margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.hintbox{border-left:2px solid #ffc65c;padding:8px 14px;background:rgba(255,198,92,.06);color:#e8dcc0;font-size:.92rem}
+.cleared{margin-top:20px;border:1px solid rgba(70,240,200,.45);background:rgba(70,240,200,.06);padding:18px 20px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.cleared b{font-family:var(--display);color:var(--ok);font-size:.95rem}
+
+/* final */
+.final{text-align:left}
+.final h1{font-size:clamp(2rem,6.4vw,4.2rem)}
+.final h1 span{display:block}
+.final h1 span:nth-child(1){color:var(--cyan)}
+.final h1 span:nth-child(2){color:var(--pink)}
+.final .reveal span{animation:glitch .9s steps(2) both}
+.final .reveal span:nth-child(2){animation-delay:.25s}
+.final .reveal span:nth-child(3){animation-delay:.5s}
+@keyframes glitch{0%{opacity:0;transform:translateX(-14px) skewX(8deg)}50%{opacity:.6;transform:translateX(8px)}100%{opacity:1;transform:none}}
+.stats{display:flex;gap:0;flex-wrap:wrap;margin:32px 0 18px;border:1px solid var(--line);background:var(--panel)}
+.stats div{flex:1 1 140px;padding:16px 20px;border-right:1px solid var(--line)}
+.stats div:last-child{border-right:0}
+.stats b{display:block;font-family:var(--display);font-size:1.3rem}
+.stats span{font-size:.8rem;color:var(--muted)}
+.sync{font-size:.9rem;margin:8px 0 22px}
+.sync.ok{color:var(--ok)} .sync.warn{color:#ffc65c}
+
+footer{border-top:1px solid var(--line);padding:18px clamp(16px,4vw,40px);display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:.8rem}
+footer button{background:none;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;font-size:.8rem}
+
+/* organizer dialog */
+dialog{margin:auto;max-width:520px;width:calc(100% - 32px);background:var(--panel);color:var(--text);border:1px solid var(--line-2);padding:26px}
+dialog::backdrop{background:rgba(2,3,8,.82)}
+dialog h2{font-size:1.2rem;margin-bottom:6px}
+.orow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.ostat{margin-top:14px;font-size:.88rem;color:var(--muted);white-space:pre-wrap}
+
+
+/* circuit builder */
+.builder{margin:22px 0;border:1px solid var(--line);background:var(--panel)}
+.bhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.bhead b{font-family:var(--display);font-size:.85rem}
+.bhead span{font-size:.8rem;color:var(--muted)}
+.palette{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.pal{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;padding:8px 12px;border:1px solid var(--line-2);background:#0a0816;font-size:.84rem;color:var(--text)}
+.pal:hover{border-color:var(--cyan)}
+.pal.gate{font-family:var(--display);font-weight:700;font-size:.76rem;color:var(--cyan)}
+.pal.led{color:var(--pink);border-color:rgba(157,107,255,.5)}
+.pal[disabled]{opacity:.35;cursor:not-allowed}
+.palsep{width:1px;background:var(--line-2);margin:0 4px}
+.dragghost{position:fixed;z-index:50;pointer-events:none;padding:8px 12px;border:1px solid var(--cyan);background:#120d28;color:var(--text);font-size:.84rem;opacity:.92}
+.board{position:relative;height:380px;overflow:hidden;background:#07050f;
+  background-image:radial-gradient(rgba(184,255,60,.16) 1px,transparent 1px);background-size:24px 24px}
+.board svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.board .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:.9rem;text-align:center;padding:20px;pointer-events:none}
+.node{cursor:grab;touch-action:none}
+.node .body{fill:#140f30;stroke:var(--line-2);stroke-width:1.6}
+.node.sel .body{stroke:var(--cyan);stroke-width:2.4}
+.node text{fill:var(--text);font-family:var(--body);font-size:11px;pointer-events:none}
+.node text.g{font-family:var(--display);font-weight:700;font-size:11px;fill:var(--cyan)}
+.node .stub{stroke:var(--line-2);stroke-width:2}
+.port{fill:#07050f;stroke:var(--cyan);stroke-width:2;cursor:crosshair;touch-action:none}
+.port.out{stroke:var(--pink)}
+.port:hover,.port.hot{fill:var(--cyan)}
+.porthit{fill:transparent;cursor:crosshair;touch-action:none}
+.wire{fill:none;stroke-width:3;stroke-linecap:round}
+.wire.v1{stroke:var(--cyan)} .wire.v0{stroke:#4a3d7a} .wire.vn{stroke:#6a5a9e;stroke-dasharray:5 5}
+.wire.sel{stroke:#fff}
+.wirehit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer}
+.wire.temp{stroke:var(--pink);stroke-dasharray:6 5;pointer-events:none}
+.tog{fill:#241a48;stroke:var(--line-2)} .tog.on{fill:var(--cyan);stroke:var(--cyan)}
+.knob{fill:#f0ecff}
+.lamp{fill:#18112e;stroke:var(--pink);stroke-width:2.4} .lamp.on{fill:var(--pink);filter:drop-shadow(0 0 8px var(--pink))}
+.btools{display:flex;gap:10px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line)}
+.btools .btn{padding:10px 18px;font-size:.84rem}
+.bmsg{padding:0 16px 14px;min-height:1.4em;font-size:.88rem;color:var(--muted)}
+.lockmsg{color:#ffc65c}
+.codebox input:disabled{opacity:.45;cursor:not-allowed}
+.bmsg.bad{color:var(--bad)} .bmsg.good{color:var(--ok)}
+.bit.run{animation:pop .35s}
+@keyframes pop{from{transform:scale(1.4);background:rgba(157,107,255,.3)}to{transform:none}}
+@media (max-width:480px){.board{height:420px}}
+
+@media (max-width:860px){
+  .login{grid-template-columns:1fr}
+  .bar .meta{display:none}
+  .bar{position:static}
+}
+@media (max-width:560px){
+  .lockside{grid-template-columns:96px 1fr}
+  .ring{max-width:96px}
+  .levels{grid-template-columns:1fr}
+  th,td{padding:9px 8px}
+  .codebox input{font-size:1.15rem;letter-spacing:.25em}
+  .board{height:420px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== futuristic skin ===== */
+body{font-size:17px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:40;
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.028) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+body::after{content:"";position:fixed;left:0;right:0;top:0;height:140px;pointer-events:none;z-index:39;
+  background:linear-gradient(to bottom,transparent,rgba(184,255,60,.05),transparent);animation:sweep 7s linear infinite}
+@keyframes sweep{from{transform:translateY(-160px)}to{transform:translateY(100vh)}}
+h1,h2,h3,.brand,.timer,.stamp,.lvl,.tag,th{text-transform:uppercase;letter-spacing:.06em}
+.hero-title em{text-shadow:0 0 28px rgba(184,255,60,.55)}
+.timer{text-shadow:0 0 12px rgba(184,255,60,.6)}
+.bar{border-bottom-color:var(--line-2);box-shadow:0 1px 0 rgba(184,255,60,.18),0 8px 30px rgba(0,0,0,.4)}
+.card,.builder,.tablewrap,.cleared,.stats,.brief ol{
+  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+  border-color:var(--line-2);background:linear-gradient(160deg,var(--panel-2),var(--panel) 55%)}
+.card::before{width:64px;height:3px;box-shadow:0 0 12px var(--cyan)}
+.btn{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  text-transform:uppercase;letter-spacing:.1em;font-weight:600;
+  background:linear-gradient(135deg,var(--pink),#6f3bff);box-shadow:0 0 22px rgba(157,107,255,.45)}
+.btn.cyan{background:var(--cyan);color:#0a1300;box-shadow:0 0 22px rgba(184,255,60,.4)}
+.btn.ghost{background:rgba(157,107,255,.06);border:0;box-shadow:inset 0 0 0 1px var(--line-2)}
+.chip,.net,.lvl,.pill,.pal,.gatekey div,.levels div,.stamp{clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.stamp{padding:6px 22px;box-shadow:0 0 18px rgba(157,107,255,.35);transform:none}
+.gatekey div{padding:8px 20px;border-left:3px solid var(--cyan)}
+.gatekey b{text-shadow:0 0 10px rgba(184,255,60,.6)}
+.pill.on{box-shadow:0 0 14px rgba(184,255,60,.55)}
+.bit.f{box-shadow:0 0 14px rgba(157,107,255,.55);text-shadow:0 0 8px var(--pink)}
+.seg.done{filter:drop-shadow(0 0 6px rgba(184,255,60,.7))}
+.seg.current{filter:drop-shadow(0 0 7px rgba(157,107,255,.9))}
+.ring-q{filter:drop-shadow(0 0 10px rgba(184,255,60,.35))}
+.lamp.on{filter:drop-shadow(0 0 10px var(--pink))}
+.wire.v1{filter:drop-shadow(0 0 5px var(--cyan))}
+.node.sel .body{filter:drop-shadow(0 0 6px var(--cyan))}
+.board{background-color:#07050f;box-shadow:inset 0 0 60px rgba(157,107,255,.12)}
+input[type=text],input[type=password]{border-color:var(--line-2);background:rgba(7,5,15,.9)}
+input:focus{box-shadow:0 0 0 3px rgba(184,255,60,.18),0 0 18px rgba(184,255,60,.2)}
+.hintbox{border-left-color:var(--cyan);background:rgba(184,255,60,.06);color:#e6f5c4}
+.final h1 span{text-shadow:0 0 30px currentColor}
+dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">THE LOST <span>TIMELINE</span></div>
+  <div class="meta">Round 04 · Fragment 04 · Year 3026</div>
+  <div class="spacer"></div>
+  <div class="chip hidden" id="teamchip">Team <b id="chipid"></b> · <span id="chipname"></span></div>
+  <div class="timer hidden" id="timer" aria-label="Time remaining">00:00</div>
+  <div class="net" id="net">Checking server…</div>
+</header>
+
+<main>
+
+<!-- 1. TEAM LOGIN -->
+<section id="s-login" class="login">
+  <div>
+    <div class="stamp">CHRONO-CORE · LOCKED</div>
+    <h1 class="hero-title">The Temporal <em>Lock.</em></h1>
+    <p class="lede">Year 3026. The final Time Fragment is sealed inside the Chrono-Core. Wire the right logic gates, read the outputs, and enter the activation code to open each stage.</p>
+  </div>
+  <form class="card" id="loginform" autocomplete="off" novalidate>
+    <h2 style="font-size:1.1rem">Register your crew</h2>
+    <label for="teamid">Team ID</label>
+    <input type="text" id="teamid" placeholder="TL-001" maxlength="12" autocapitalize="characters" spellcheck="false">
+    <div class="help">Use the ID given by the organizers. It stays the same in all four rounds.</div>
+    <label for="teamname">Team name</label>
+    <input type="text" id="teamname" placeholder="e.g. Quantum Drifters" maxlength="40">
+    <div class="err" id="loginerr" role="alert"></div>
+    <button class="btn" type="submit" id="loginbtn">Enter the Chrono-Core</button>
+  </form>
+</section>
+
+<!-- 2. BRIEFING -->
+<section id="s-brief" class="brief hidden">
+  <span class="tag">Mission briefing</span>
+  <h1 class="hero-title" style="font-size:clamp(1.8rem,5vw,3.2rem);margin-top:8px">Read this before the clock starts.</h1>
+  <ol>
+    <li><i>01</i><div><b>Read the Chrono-Core condition</b><span>Each question describes the condition and gives the test table. Work out which gates you need.</span></div></li>
+    <li><i>02</i><div><b>Connect the circuit</b><span>Drag the switches, gates and the output lamp onto the circuit board and wire them together. ON = 1, OFF = 0.</span></div></li>
+    <li><i>03</i><div><b>Run the tests and read the outputs</b><span>Your circuit must match the connections in the question. Press Run all tests to unlock the code box and see every output. Read them top to bottom to form a binary code.</span></div></li>
+    <li><i>04</i><div><b>Enter only the code</b><span>Do not type gate names. Keep leading zeros. A correct code unlocks the next question.</span></div></li>
+  </ol>
+  <div class="gatekey" aria-label="Gate reference">
+    <div><b>AND</b>1 only if all inputs are 1</div>
+    <div><b>OR</b>1 if any input is 1</div>
+    <div><b>NOT</b>flips the input</div>
+  </div>
+  <p class="note" style="margin:-8px 0 22px">3 questions: 1 easy, 1 medium, 1 hard. You have 10 minutes for the whole round. The countdown starts when you press the button and the round closes when it reaches zero.</p>
+  <button class="btn" id="beginbtn">Start the mission</button>
+</section>
+
+<!-- 3. PLAY -->
+<section id="s-play" class="play hidden">
+  <aside class="lockside" aria-label="Progress">
+    <svg class="ring" id="ring" viewBox="0 0 240 240" role="img" aria-label="Lock progress"></svg>
+    <div class="levels" id="levels">
+      <div data-l="easy"><b>Easy</b><span>Q1</span></div>
+      <div data-l="medium"><b>Medium</b><span>Q2</span></div>
+      <div data-l="hard"><b>Hard</b><span>Q3</span></div>
+    </div>
+  </aside>
+  <article id="qcard"></article>
+</section>
+
+<!-- 4. FINAL -->
+<section id="s-final" class="final hidden">
+  <div class="stamp" id="fstamp" style="border-color:var(--ok);color:var(--ok)">FRAGMENT 04 RECOVERED</div>
+  <h1 class="reveal" id="freveal">
+    <span>TEMPORAL LOCK DISABLED</span>
+    <span>TIME FRAGMENT #4 RECOVERED</span>
+    <span>TIMELINE RESTORED</span>
+  </h1>
+  <div class="stats" id="stats"></div>
+  <div class="sync" id="sync" role="status"></div>
+  <button class="btn ghost hidden" id="retrybtn">Retry saving results</button>
+</section>
+
+</main>
+
+<footer>
+  <span>The Lost Timeline · Round 04 · The Temporal Lock</span>
+  <span class="spacer"></span>
+  <button id="orgbtn" type="button">Organizer</button>
+</footer>
+
+<dialog id="orgdlg">
+  <h2>Organizer panel</h2>
+  <p class="note" style="margin-top:0">Download the results of every team in this round as one CSV.</p>
+  <label for="orgkey" style="margin-top:14px">Organizer key</label>
+  <input type="password" id="orgkey" autocomplete="off">
+  <div class="orow">
+    <button class="btn cyan" id="orgdl" type="button">Download CSV (all teams)</button>
+    <button class="btn ghost" id="orgloc" type="button">This device only</button>
+    <button class="btn ghost" id="orgclose" type="button">Close</button>
+  </div>
+  <div class="ostat" id="orgstat" role="status"></div>
+</dialog>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- CONFIG ---------- */
+const ROUND_ID = 'R4';
+const ROUND_TITLE = 'The Temporal Lock';
+const TEAM_ID_PATTERN = /^TL-\d{3}$/;              // change here if your Team ID format differs
+const API = new URLSearchParams(location.search).get('api')
+          || (location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '');
+const HASHES = {"Q1":6340331123719632,"Q2":3545818118725403,"Q3":7221613178130369,"Q4":4829485462002235,"Q5":8075456704113698,"Q6":1253322376826786,"Q7":1329403736284329,"Q8":598746646669141,"Q9":3015032093146405,"Q10":833171155108176};
+const SALT = 'TL-R4-chrono-3026';
+const LS_STATE = 'lt_' + ROUND_ID + '_state_v4';
+const LS_LOCAL = 'lt_' + ROUND_ID + '_localresults';
+
+/* ---------- QUESTIONS ---------- */
+const T = (cols, rows) => ({cols, rows});
+const ALL_QUESTIONS = [
+ { id:'Q1', expect:['and','Power A','Power B'], level:'easy', title:'Power Check',
+   story:'The Chrono-Core’s power supply is being tested. Both power switches must be ON for the system to activate.',
+   connect:['Power Switch A and Power Switch B to the two inputs of an AND gate.'],
+   out:'Core output', t:T(['Power A','Power B'],[[0,1],[1,0],[1,1]]),
+   hint:'The output is 1 only when every input is ON.' },
+ { id:'Q2', expect:['or','Navigation','Shield'], level:'easy', title:'Emergency Beacon',
+   story:'The emergency beacon can be activated by either backup system.',
+   connect:['Backup Navigation and Backup Shield to the two inputs of an OR gate.'],
+   out:'Core output', t:T(['Navigation','Shield'],[[0,1],[1,0],[1,1]]),
+   hint:'The output is 1 when at least one input is ON.' },
+ { id:'Q3', expect:['not','Emergency Override'], level:'easy', title:'Override Reversal',
+   story:'The Core must reverse the Emergency Override signal. When Override is OFF, the reversed signal should be ON.',
+   connect:['Emergency Override to a NOT gate.'],
+   out:'Core output', t:T(['Emergency Override'],[[1]]),
+   note:'This one has one row, so the code has one digit.',
+   hint:'The output is always the opposite of the input.' },
+ { id:'Q4', expect:['and','Power Safety','Navigation Safety'], level:'easy', title:'Safety Chamber',
+   story:'The time-travel chamber activates only when both safety switches are ON.',
+   connect:['Power Safety and Navigation Safety to an AND gate.'],
+   out:'Core output', t:T(['Power Safety','Navigation Safety'],[[0,1],[1,0],[1,1]]),
+   hint:'Only one row has both inputs ON.' },
+ { id:'Q5', expect:['and','Power',['not','Override']], level:'medium', title:'Disable the Override',
+   story:'The Core requires Main Power ON and Emergency Override OFF.',
+   connect:['Emergency Override to a NOT gate.','Main Power and the NOT output to an AND gate.'],
+   out:'Core output', t:T(['Power','Override'],[[0,1],[1,0],[1,1]]),
+   hint:'Override must be OFF and Power must be ON. Check each row against both.' },
+ { id:'Q6', expect:['and',['or','Navigation','Shield'],'Power'], level:'medium', title:'Restore Navigation',
+   story:'Navigation can be restored through either backup system, but Main Power must also be ON.',
+   connect:['Backup Navigation and Backup Shield to an OR gate.','The OR output and Main Power to an AND gate.'],
+   out:'Core output', t:T(['Navigation','Shield','Power'],[[0,1,1],[1,0,1],[1,1,1]]),
+   hint:'Check each row: is at least one backup ON, and is Power ON?' },
+ { id:'Q7', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'medium', title:'Chrono-Core Conditions',
+   story:'The Core activates only when Power is ON, Navigation OR Shield is ON, and Emergency Override is OFF.',
+   connect:['Navigation and Shield to an OR gate.','Emergency Override to a NOT gate.','Power, the OR output and the NOT output to an AND gate.'],
+   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,0,1,0],[1,1,0,0],[1,1,1,1]]),
+   hint:'All three conditions must hold in the same row.' },
+ { id:'Q8', expect:['or','Navigation','Shield'], level:'medium', title:'Backup Logic Repair',
+   story:'A damaged backup circuit must activate when Navigation OR Shield is ON, but remain OFF when both are OFF.',
+   connect:['Navigation and Shield to an OR gate.'],
+   out:'Core output', t:T(['Navigation','Shield'],[[0,1],[1,0],[1,1]]),
+   hint:'The output is 1 if at least one input is ON.' },
+ { id:'Q9', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'hard', title:'Reconstruct the Temporal Lock',
+   story:'The original circuit has been erased. Mission Control recovered the conditions: Main Power must be ON; Navigation OR Shield must be ON; Emergency Override must be OFF.',
+   connect:['Navigation and Shield to an OR gate.','Emergency Override to a NOT gate.','Power, the OR output and the NOT output to a final AND gate.'],
+   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,1,0,0],[1,0,1,1],[1,1,1,0]]),
+   hint:'Check each row against all three conditions. One failed condition makes the output 0.' },
+ { id:'Q10', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'hard', title:'Final Chrono-Core Activation',
+   story:'The final Time Fragment is inside the Core. Build the activation circuit using the same recovered conditions: Power ON; at least one of Navigation or Shield ON; Emergency Override OFF.',
+   connect:['Build Navigation OR Shield.','Invert Emergency Override using NOT.','AND the Power, the backup OR result and the inverted Override.'],
+   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,0,0,0],[1,1,0,0],[1,0,1,0],[1,1,1,1]]),
+   note:'This one has four rows, so the code has four digits.',
+   hint:'Read every row carefully. Which of Power, backup and Override fails in each one?' }
+];
+const N = 3;                    // questions per team: one easy, one medium, one hard
+const TIME_LIMIT = 600;         // seconds for the whole round (10 minutes)
+const LEVELS = ['easy','medium','hard'];
+let QUESTIONS = [];             // this team's 3 questions, set by loadSet()
+function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* same Team ID always gets the same 3 questions (survives refresh and other devices); every team gets one question from each difficulty tier */
+function pickSet(teamId){
+  const rnd = mulberry(h53('R4-set-' + teamId) >>> 0);
+  return LEVELS.map(l => { const pool = ALL_QUESTIONS.filter(q => q.level === l); return pool[Math.floor(rnd() * pool.length)].id; });
+}
+function loadSet(){ if(!S.set) S.set = pickSet(S.teamId); QUESTIONS = S.set.map(id => ALL_QUESTIONS.find(q => q.id === id)); }
+/* every component offered on every question: the real switches from all questions plus a few that no question uses */
+const POOL = ['Power A','Power B','Power','Power Safety','Navigation','Navigation Safety','Shield','Emergency Override','Override','Engine','Cooling System','Hyperdrive'];
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function h53(str, seed){seed=seed||0;let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
+const isRight = (qid, code) => HASHES[qid] === h53(SALT + qid + code);
+const pad = n => String(n).padStart(2,'0');
+const fmt = s => pad(Math.floor(s/60)) + ':' + pad(s%60);
+const nowIso = () => new Date().toISOString();
+function show(id){ ['s-login','s-brief','s-play','s-final'].forEach(s => $(s).classList.toggle('hidden', s !== id)); window.scrollTo(0,0); }
+function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+/* ---------- state ---------- */
+let S = null;      // {teamId, teamName, startedAt, q, codes[], attempts[], wrong, hintsUsed, hintShown[], finished, finishedAt, synced}
+let online = false;
+let tick = null;
+
+function newState(teamId, teamName){
+  return { teamId, teamName, startedAt:null, q:0, codes:Array(N).fill(''), attempts:Array(N).fill(0),
+           wrong:0, hintsUsed:0, hintShown:Array(N).fill(false), finished:false, finishedAt:null, synced:false, circuits:{}, set:pickSet(teamId), timedOut:false };
+}
+const saveState = () => S && lsSet(LS_STATE, S);
+const elapsed = () => {
+  const end = S.finishedAt || Date.now();
+  return Math.max(0, Math.round((end - S.startedAt)/1000));
+};
+const remaining = () => Math.max(0, Math.ceil((S.startedAt + TIME_LIMIT*1000 - Date.now())/1000));
+function renderClock(){ const r = remaining(), t = $('timer'); t.textContent = fmt(r); t.classList.toggle('low', r <= 60); }
+function timeUp(){
+  if(!S || S.finished) return;
+  S.finished = true; S.timedOut = true; S.finishedAt = S.startedAt + TIME_LIMIT*1000; saveState();
+  finish(); sync('completed').then(showSync);
+}
+
+/* ---------- API ---------- */
+async function api(path, opts){
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+  try{
+    const r = await fetch(API + '/api/' + ROUND_ID + path, Object.assign({signal:ctl.signal}, opts||{}));
+    let data = {}; try{ data = await r.json(); }catch(e){}
+    return { status:r.status, ok:r.ok, data };
+  } finally { clearTimeout(to); }
+}
+function setNet(ok){
+  online = ok; const n = $('net');
+  n.textContent = ok ? 'Shared storage connected' : 'Offline: results stay on this device';
+  n.className = 'net ' + (ok ? 'ok' : 'warn');
+}
+async function ping(){ try{ const r = await api('/health'); setNet(r.ok); }catch(e){ setNet(false); } }
+
+function payload(status){
+  const responses = QUESTIONS.map((q,i) => S.codes[i] ? q.id + '=' + S.codes[i] : null).filter(Boolean).join(';');
+  return {
+    team_id:S.teamId, team_name:S.teamName, round_id:ROUND_ID, status,
+    responses, completion_time: status === 'completed' ? elapsed() : '',
+    started_at:new Date(S.startedAt).toISOString(),
+    questions_completed:S.codes.filter(Boolean).length,
+    total_attempts:S.attempts.reduce((a,b) => a+b, 0), wrong_attempts:S.wrong, hints_used:S.hintsUsed, timed_out:S.timedOut ? 1 : 0,
+    attempts_per_question:QUESTIONS.map((q,i) => q.id + '=' + S.attempts[i]).join(';')
+  };
+}
+function stashLocal(p){
+  const all = lsGet(LS_LOCAL, {});
+  all[p.team_id] = Object.assign({}, p, { submitted_at: p.status === 'completed' ? (all[p.team_id] && all[p.team_id].submitted_at || nowIso()) : '' });
+  lsSet(LS_LOCAL, all);
+}
+async function sync(status){
+  const p = payload(status); stashLocal(p);
+  try{
+    const r = await api('/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p) });
+    setNet(r.ok || r.status === 409);
+    if(r.ok){ if(status === 'completed'){ S.synced = true; saveState(); } return true; }
+    return r.status === 409;   // already stored on the server
+  }catch(e){ setNet(false); return false; }
+}
+
+/* ---------- login ---------- */
+$('loginform').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const err = $('loginerr'); err.textContent = '';
+  const id = $('teamid').value.trim().toUpperCase().replace(/\s+/g,'');
+  const name = $('teamname').value.trim().replace(/\s+/g,' ');
+  if(!TEAM_ID_PATTERN.test(id)){ err.textContent = 'Team ID must look like TL-001. Check the ID the organizers gave you.'; return; }
+  if(name.length < 2){ err.textContent = 'Enter your team name (at least 2 characters).'; return; }
+  const btn = $('loginbtn'); btn.disabled = true; btn.textContent = 'Contacting server…';
+  try{
+    let remote = null;
+    try{
+      const r = await api('/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id:id, team_name:name}) });
+      setNet(true);
+      if(r.status === 409){
+        const m = { completed:'This team has already finished this round.',
+                    name_mismatch:'That Team ID is registered under a different team name. Use the original name.',
+                    name_taken:'That team name is already used by another Team ID.' };
+        err.textContent = m[r.data.error] || 'This registration was rejected by the server.'; return;
+      }
+      if(!r.ok){ err.textContent = (r.data && r.data.message) || 'Server rejected the registration.'; return; }
+      remote = r.data;
+    }catch(e){ setNet(false); }
+
+    const saved = lsGet(LS_STATE, null);
+    if(saved && saved.teamId === id && !saved.finished){ S = saved; S.teamName = name; S.circuits = S.circuits || {}; loadSet(); }
+    else if(saved && saved.teamId === id && saved.finished){
+      S = saved; loadSet(); $('chipid').textContent = S.teamId; $('chipname').textContent = S.teamName; $('teamchip').classList.remove('hidden');
+      $('timer').classList.remove('hidden'); finish(); return;
+    }
+    else {
+      S = newState(id, name); loadSet();
+      if(remote && remote.resumed && remote.started_at){           // continue on another device
+        S.startedAt = Date.parse(remote.started_at);
+        String(remote.responses || '').split(';').forEach(p => { const m = /^(Q\d+)=([01]+)$/.exec(p); const k = m ? S.set.indexOf(m[1]) : -1; if(k >= 0) S.codes[k] = m[2]; });
+        S.q = Math.min(S.codes.filter(Boolean).length, N-1);
+        S.wrong = +remote.wrong_attempts || 0; S.hintsUsed = +remote.hints_used || 0;
+      }
+    }
+    saveState();
+    $('chipid').textContent = S.teamId; $('chipname').textContent = S.teamName; $('teamchip').classList.remove('hidden');
+    if(S.startedAt){ startPlay(); } else { show('s-brief'); }
+  } finally { btn.disabled = false; btn.textContent = 'Enter the Chrono-Core'; }
+});
+
+$('beginbtn').addEventListener('click', () => { S.startedAt = Date.now(); saveState(); sync('in_progress'); startPlay(); });
+
+/* ---------- play ---------- */
+function startPlay(){
+  while(S.q < N-1 && S.codes[S.q]) S.q++;      // resume after a refresh that happened right after a correct code
+  clearInterval(tick);
+  if(!S.finished && remaining() <= 0){ $('timer').classList.remove('hidden'); timeUp(); return; }
+  $('timer').classList.remove('hidden');
+  tick = setInterval(() => { if(S && S.startedAt && !S.finished){ if(remaining() <= 0) timeUp(); else renderClock(); } }, 250);
+  renderClock();
+  show('s-play'); renderRing(); renderQuestion();
+}
+
+function renderRing(){
+  const cx = 120, cy = 120, r = 96, gap = 8, seg = 360/N, span = seg - gap; let svg = '';
+  const pt = a => { const t = (a-90)*Math.PI/180; return [cx + r*Math.cos(t), cy + r*Math.sin(t)]; };
+  const doneCount = S.codes.filter(Boolean).length;
+  for(let i=0;i<N;i++){
+    const a0 = i*seg + gap/2, a1 = a0 + span, p0 = pt(a0), p1 = pt(a1);
+    const cls = 'seg' + (i < doneCount ? ' done' : (i === doneCount && !S.finished ? ' current' : ''));
+    svg += '<path class="'+cls+'" d="M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+r+' '+r+' 0 0 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+'"/>';
+  }
+  const label = S.finished ? 'OPEN' : 'Q' + (S.q+1);
+  svg += '<text class="ring-q" x="120" y="124" text-anchor="middle">'+label+'</text>';
+  svg += '<text class="ring-of" x="120" y="146" text-anchor="middle">'+(S.finished ? 'lock disabled' : 'of ' + N)+'</text>';
+  const ring = $('ring'); ring.innerHTML = svg; ring.classList.toggle('open', S.finished);
+  const lv = S.finished ? '' : QUESTIONS[S.q].level;
+  document.querySelectorAll('#levels div').forEach(d => d.classList.toggle('on', d.dataset.l === lv));
+}
+
+function renderQuestion(){
+  const q = QUESTIONS[S.q], rows = q.t.rows, n = rows.length;
+  const head = '<th>Test</th>' + q.t.cols.map(c => '<th>'+c+'</th>').join('') + '<th class="out">'+q.out+'</th>';
+  const body = rows.map((r,i) => '<tr><td class="t">'+(i+1)+'</td>' +
+      r.map(v => '<td><span class="pill '+(v?'on':'off')+'">'+(v?'ON':'OFF')+'</span></td>').join('') +
+      '<td class="out"><span class="bit" data-bit="'+i+'">_</span></td></tr>').join('');
+  $('qcard').innerHTML =
+    '<div class="qhead"><span class="tag">Question '+(S.q+1)+' of '+N+'</span><span class="lvl '+q.level+'">'+q.level[0].toUpperCase()+q.level.slice(1)+'</span></div>' +
+    '<h2 class="qtitle">'+q.title+'</h2>' +
+    '<p class="story">'+q.story+'</p>' +
+    '<div class="gatekey" aria-label="Gate reference" style="margin:18px 0 0"><div><b>AND</b>1 only if all inputs are 1</div><div><b>OR</b>1 if any input is 1</div><div><b>NOT</b>flips the input</div></div>' +
+    '<div class="tablewrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>' +
+    '<div class="builder" id="builder">' +
+      '<div class="bhead"><b>Circuit board</b><span>Drag parts onto the board. Drag from a round port to another port to wire them. Click a switch to flip it.</span></div>' +
+      '<div class="palette" id="palette"></div>' +
+      '<div class="board" id="board"><svg id="svg" aria-label="Circuit board"></svg><div class="empty" id="boardempty">Drag the switches, a gate and the output lamp here</div></div>' +
+      '<div class="btools"><button type="button" class="btn cyan" id="runbtn">Run all tests</button>' +
+      '<button type="button" class="btn ghost" id="delbtn">Delete selected</button>' +
+      '<button type="button" class="btn ghost" id="clrbtn">Clear board</button></div>' +
+      '<div class="bmsg" id="bmsg" role="status" aria-live="polite">AND and OR gates have three input ports. Unused ports are ignored.</div>' +
+    '</div>' +
+    '<form id="codeform" autocomplete="off" novalidate>' +
+      '<label for="code" style="margin-top:0">Activation code ('+n+' digits, top to bottom)</label>' +
+      '<div class="codebox"><input type="text" id="code" inputmode="numeric" maxlength="'+n+'" placeholder="'+'0'.repeat(n)+'" aria-describedby="fb">' +
+      '<button class="btn" type="submit" id="verify">Verify code</button></div>' +
+      '<div class="note lockmsg" id="lockmsg">Build the circuit exactly as the question describes, then press Run all tests to unlock the code box.</div>' +
+      '<div class="note">'+(q.note ? q.note + ' ' : '')+'Enter only 0s and 1s, not gate names. Keep leading zeros.</div>' +
+      '<div class="fb" id="fb" role="status" aria-live="polite"></div>' +
+      '<div class="hintrow" id="hintrow"></div>' +
+    '</form><div id="clearedslot"></div>';
+  const input = $('code');
+  input.addEventListener('input', () => { input.value = input.value.replace(/[^01]/g,'').slice(0,n); });
+  initBuilder(q);
+  $('codeform').addEventListener('submit', ev => { ev.preventDefault(); verify(); });
+  if(S.hintShown[S.q]) showHint(true);
+  else if(S.attempts[S.q] - 0 >= 2) offerHint();
+  input.focus({preventScroll:true});
+}
+
+function offerHint(){
+  const row = $('hintrow'); if(!row || row.querySelector('.hintbox') || row.querySelector('button')) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = 'Show a hint';
+  b.addEventListener('click', () => showHint(false));
+  row.appendChild(b);
+}
+function showHint(restoring){
+  const q = QUESTIONS[S.q];
+  if(!restoring && !S.hintShown[S.q]){ S.hintShown[S.q] = true; S.hintsUsed++; saveState(); }
+  $('hintrow').innerHTML = '<div class="hintbox">Hint: '+q.hint+'</div>';
+}
+
+function verify(){
+  const q = QUESTIONS[S.q], n = q.t.rows.length, fb = $('fb'), val = $('code').value.trim();
+  fb.className = 'fb';
+  if(remaining() <= 0){ timeUp(); return; }
+  if(!B || !B.ranSig || B.ranSig !== sig()){ fb.classList.add('bad'); fb.textContent = 'Build the circuit and run the tests first.'; setLock(true); return; }
+  if(val.length !== n || /[^01]/.test(val)){ fb.classList.add('bad'); fb.textContent = 'Enter exactly '+n+' digits (0 or 1), including leading zeros.'; return; }
+  S.attempts[S.q]++;
+  if(isRight(q.id, val)){
+    S.codes[S.q] = val; saveState();
+    $('codeform').classList.add('hidden');
+    const last = S.q === N-1;
+    $('clearedslot').innerHTML = '<div class="cleared"><div><b>'+(last ? 'FINAL LOCK OPEN' : 'LEVEL CLEARED')+'</b><div class="note" style="margin:4px 0 0">Code '+val+' accepted.</div></div>' +
+      '<button class="btn cyan" id="nextbtn">'+(last ? 'Recover the fragment' : 'Unlock question '+(S.q+2))+'</button></div>';
+    renderRing();
+    if(last){ S.finished = true; S.finishedAt = Date.now(); saveState(); }
+    sync(last ? 'completed' : 'in_progress');
+    $('nextbtn').focus();
+    $('nextbtn').addEventListener('click', () => { if(last){ finish(); } else { S.q++; saveState(); renderRing(); renderQuestion(); window.scrollTo(0,0); } });
+  } else {
+    S.wrong++; saveState();
+    fb.classList.add('bad');
+    fb.textContent = 'Code rejected. Re-run the tests, read the outputs top to bottom, and try again.';
+    const c = document.querySelector('.codebox'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+    $('code').select();
+    if(S.attempts[S.q] >= 2) offerHint();
+  }
+}
+
+
+/* ---------- circuit builder ---------- */
+const GD = { and:{w:76,h:72,ins:3}, or:{w:76,h:72,ins:3}, not:{w:64,h:72,ins:1}, sw:{w:164,h:44,ins:0}, led:{w:96,h:64,ins:1} };
+let B = null;   // {q, C, sel:{k:'n'|'w',id}, drag, wiring}
+const svgNS = 'http://www.w3.org/2000/svg';
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function inPos(n,i){ const g = GD[n.type]; return [n.x, n.y + (g.ins === 1 ? g.h/2 : 16 + i*20)]; }
+function outPos(n){ const g = GD[n.type]; return [n.x + g.w, n.y + (n.type === 'sw' ? 22 : g.h/2)]; }
+const nodeById = id => B.C.nodes.find(n => n.id === id);
+
+function evalNode(id, env, seen){
+  const n = nodeById(id); if(!n) return null;
+  if(n.type === 'sw') return env ? (n.col >= 0 ? env[n.col] : 0) : (n.on ? 1 : 0);
+  if(seen.has(id)) return null;
+  const s2 = new Set(seen); s2.add(id);
+  const ins = [];
+  for(let i = 0; i < GD[n.type].ins; i++){
+    const w = B.C.wires.find(w => w.to === id && w.port === i);
+    if(w){ const v = evalNode(w.from, env, s2); if(v === null) return null; ins.push(v); }
+  }
+  if(!ins.length) return null;
+  if(n.type === 'and') return ins.every(v => v === 1) ? 1 : 0;
+  if(n.type === 'or')  return ins.some(v => v === 1) ? 1 : 0;
+  if(n.type === 'not') return 1 - ins[0];
+  return ins[0];   // led
+}
+
+function bmsg(t, cls){ const m = $('bmsg'); if(m){ m.textContent = t; m.className = 'bmsg' + (cls ? ' ' + cls : ''); } }
+function persist(){ if(!B) return; S.circuits[B.q.id] = B.C; saveState();
+  if(B.ranSig && sig() !== B.ranSig){ B.ranSig = null; setLock(true); clearBits(); bmsg('The circuit changed. Run all tests again to unlock the code box.', 'bad'); } }
+
+function initBuilder(q){
+  const saved = S.circuits && S.circuits[q.id];
+  B = { q, C: saved || { nodes:[], wires:[], next:1 }, sel:null, drag:null, wiring:null, ranSig:null };
+  const pal = $('palette');
+  const parts = POOL.map(c => ({kind:'sw', name:c, text:c, cls:''}))
+    .concat([{sep:true}, {kind:'and', text:'AND', cls:' gate'}, {kind:'or', text:'OR', cls:' gate'}, {kind:'not', text:'NOT', cls:' gate'},
+             {sep:true}, {kind:'led', text:'Output lamp', cls:' led'}]);
+  pal.innerHTML = parts.map(p => p.sep ? '<span class="palsep"></span>' :
+    '<button type="button" class="pal'+p.cls+'" data-kind="'+p.kind+'"'+(p.name != null ? ' data-name="'+esc(p.name)+'"' : '')+'>'+esc(p.text)+'</button>').join('');
+  pal.querySelectorAll('.pal').forEach(b => b.addEventListener('pointerdown', palDown));
+  $('svg').addEventListener('pointerdown', svgDown);
+  $('runbtn').addEventListener('click', runTests);
+  $('delbtn').addEventListener('click', deleteSel);
+  $('clrbtn').addEventListener('click', () => { B.C = { nodes:[], wires:[], next:1 }; B.sel = null; clearBits(); persist(); drawBoard(); bmsg('Board cleared.'); });
+  setLock(true);
+  drawBoard();
+}
+
+function boardSize(){ const r = $('svg').getBoundingClientRect(); return { w:r.width, h:r.height, l:r.left, t:r.top }; }
+function clampNode(n){ const b = boardSize(), g = GD[n.type]; n.x = Math.max(4, Math.min(b.w - g.w - 4, n.x)); n.y = Math.max(4, Math.min(b.h - g.h - 4, n.y)); }
+
+function addNode(kind, name, x, y){
+  const C = B.C;
+  if(kind === 'sw' && C.nodes.some(n => n.type === 'sw' && n.label === name)) return;
+  if(kind === 'led' && C.nodes.some(n => n.type === 'led')) return;
+  const n = { id:C.next++, type:kind, x, y };
+  if(kind === 'sw'){ n.col = B.q.t.cols.indexOf(name); n.label = name; n.on = false; }
+  clampNode(n); C.nodes.push(n); B.sel = {k:'n', id:n.id}; persist(); drawBoard();
+}
+function autoPos(kind, name){
+  const b = boardSize(), cnt = B.C.nodes.filter(n => n.type === kind).length;
+  if(kind === 'sw') return [14 + (cnt % 2) * 14, 14 + cnt * 54];
+  if(kind === 'led') return [b.w - 120, b.h/2 - 32];
+  return [Math.min(b.w - 160, 230) + (cnt % 3) * 14, 20 + (cnt % 4) * 82];
+}
+
+function palDown(ev){
+  const btn = ev.currentTarget; if(btn.disabled) return; ev.preventDefault();
+  const kind = btn.dataset.kind, col = btn.dataset.name != null ? btn.dataset.name : null;
+  const g = document.createElement('div'); g.className = 'dragghost'; g.textContent = btn.textContent; document.body.appendChild(g);
+  const sx = ev.clientX, sy = ev.clientY; let moved = false;
+  const place = e => { g.style.left = (e.clientX + 8) + 'px'; g.style.top = (e.clientY + 8) + 'px'; };
+  place(ev);
+  const mv = e => { if(Math.hypot(e.clientX - sx, e.clientY - sy) > 6) moved = true; place(e); };
+  const up = e => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); g.remove();
+    if(!B) return;
+    const b = boardSize(), gd = GD[kind];
+    const inside = e.clientX >= b.l && e.clientX <= b.l + b.w && e.clientY >= b.t && e.clientY <= b.t + b.h;
+    if(moved && inside) addNode(kind, col, e.clientX - b.l - gd.w/2, e.clientY - b.t - gd.h/2);
+    else if(!moved){ const p = autoPos(kind, col); addNode(kind, col, p[0], p[1]); }
+  };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+
+function local(ev){ const b = boardSize(); return [ev.clientX - b.l, ev.clientY - b.t]; }
+
+function svgDown(ev){
+  const t = ev.target;
+  const portEl = t.closest('[data-port-kind]');
+  if(portEl){ ev.preventDefault(); startWire(portEl, ev); return; }
+  const wireEl = t.closest('[data-wid]');
+  if(wireEl){ B.sel = {k:'w', id:+wireEl.dataset.wid}; drawBoard(); return; }
+  const nodeEl = t.closest('[data-nid]');
+  if(nodeEl){
+    ev.preventDefault();
+    const n = nodeById(+nodeEl.dataset.nid), p = local(ev);
+    B.sel = {k:'n', id:n.id}; B.drag = { n, dx:p[0] - n.x, dy:p[1] - n.y, sx:ev.clientX, sy:ev.clientY, moved:false };
+    drawBoard(); return;
+  }
+  B.sel = null; drawBoard();
+}
+
+function startWire(portEl, ev){
+  const id = +portEl.dataset.nid, kind = portEl.dataset.portKind, port = +portEl.dataset.port;
+  if(kind === 'in'){
+    const ex = B.C.wires.find(w => w.to === id && w.port === port);
+    if(ex){ B.C.wires = B.C.wires.filter(w => w !== ex); B.wiring = { from:ex.from, kind:'out', p:local(ev) }; drawBoard(); return; }
+    B.wiring = { from:id, port, kind:'in', p:local(ev) };
+  } else B.wiring = { from:id, kind:'out', p:local(ev) };
+  drawBoard();
+}
+
+function nearestPort(p, wantKind, excludeId){
+  let best = null, bd = 22;
+  B.C.nodes.forEach(n => {
+    if(n.id === excludeId) return;
+    if(wantKind === 'in'){ for(let i = 0; i < GD[n.type].ins; i++){ const q = inPos(n,i), d = Math.hypot(q[0]-p[0], q[1]-p[1]); if(d < bd){ bd = d; best = {id:n.id, port:i}; } } }
+    else if(n.type !== 'led'){ const q = outPos(n), d = Math.hypot(q[0]-p[0], q[1]-p[1]); if(d < bd){ bd = d; best = {id:n.id}; } }
+  });
+  return best;
+}
+
+window.addEventListener('pointermove', ev => {
+  if(!B) return;
+  if(B.drag){ const d = B.drag; if(Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) > 4) d.moved = true;
+    if(d.moved){ const p = local(ev); d.n.x = p[0] - d.dx; d.n.y = p[1] - d.dy; clampNode(d.n); drawBoard(); } }
+  else if(B.wiring){ B.wiring.p = local(ev); drawBoard(); }
+});
+window.addEventListener('pointerup', ev => {
+  if(!B) return;
+  if(B.drag){ const d = B.drag; B.drag = null;
+    if(!d.moved && d.n.type === 'sw'){ d.n.on = !d.n.on; }
+    persist(); drawBoard(); }
+  else if(B.wiring){
+    const w = B.wiring; B.wiring = null; const p = local(ev);
+    if(w.kind === 'out'){ const t = nearestPort(p, 'in', w.from);
+      if(t){ B.C.wires = B.C.wires.filter(x => !(x.to === t.id && x.port === t.port)); B.C.wires.push({ id:B.C.next++, from:w.from, to:t.id, port:t.port }); } }
+    else { const t = nearestPort(p, 'out', w.from);
+      if(t){ B.C.wires = B.C.wires.filter(x => !(x.to === w.from && x.port === w.port)); B.C.wires.push({ id:B.C.next++, from:t.id, to:w.from, port:w.port }); } }
+    persist(); drawBoard();
+  }
+});
+document.addEventListener('keydown', ev => {
+  if(B && (ev.key === 'Delete' || ev.key === 'Backspace') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ ev.preventDefault(); deleteSel(); }
+});
+function deleteSel(){
+  if(!B || !B.sel){ bmsg('Click a part or a wire first, then delete it.'); return; }
+  if(B.sel.k === 'n'){ const id = B.sel.id; B.C.nodes = B.C.nodes.filter(n => n.id !== id); B.C.wires = B.C.wires.filter(w => w.from !== id && w.to !== id); }
+  else B.C.wires = B.C.wires.filter(w => w.id !== B.sel.id);
+  B.sel = null; persist(); drawBoard();
+}
+
+function wirePath(a, b){ const dx = Math.max(30, Math.abs(b[0]-a[0]) / 2); return 'M'+a[0]+' '+a[1]+' C'+(a[0]+dx)+' '+a[1]+' '+(b[0]-dx)+' '+b[1]+' '+b[0]+' '+b[1]; }
+
+function nodeSvg(n){
+  const g = GD[n.type], sel = B.sel && B.sel.k === 'n' && B.sel.id === n.id;
+  let h = '<g class="node'+(sel ? ' sel' : '')+'" data-nid="'+n.id+'" transform="translate('+n.x+','+n.y+')">';
+  if(n.type === 'sw'){
+    h += '<rect class="body" x="0" y="0" width="164" height="44" rx="4"/><text x="10" y="26">'+esc(n.label)+'</text>' +
+         '<rect class="tog'+(n.on ? ' on' : '')+'" x="116" y="12" width="38" height="20" rx="10"/>' +
+         '<circle class="knob" cx="'+(n.on ? 144 : 126)+'" cy="22" r="7"/>' +
+         '<text x="'+(n.on ? 122 : 140)+'" y="26" style="font-size:9px;font-weight:600;fill:'+(n.on ? '#0a1300' : '#9d96c2')+'">'+(n.on ? '1' : '0')+'</text>';
+  } else if(n.type === 'and'){
+    h += '<path class="body" d="M0,2 H34 A34,34 0 0 1 34,70 H0 Z"/><line class="stub" x1="68" y1="36" x2="76" y2="36"/><text class="g" x="20" y="40">AND</text>';
+  } else if(n.type === 'or'){
+    h += '<path class="body" d="M0,2 Q40,2 68,36 Q40,70 0,70 Q20,36 0,2 Z"/><line class="stub" x1="68" y1="36" x2="76" y2="36"/><text class="g" x="22" y="40">OR</text>';
+  } else if(n.type === 'not'){
+    h += '<path class="body" d="M0,10 L50,36 L0,62 Z"/><circle class="body" cx="55" cy="36" r="5"/><line class="stub" x1="60" y1="36" x2="64" y2="36"/><text class="g" x="8" y="40" style="font-size:9px">NOT</text>';
+  } else {
+    const v = evalNode(n.id, null, new Set());
+    h += '<line class="stub" x1="0" y1="32" x2="44" y2="32"/><circle class="lamp'+(v === 1 ? ' on' : '')+'" cx="64" cy="32" r="20"/><text x="48" y="36" style="font-size:9px;fill:'+(v === 1 ? '#fff' : '#9d96c2')+'">'+(v === null ? '?' : v)+'</text>';
+  }
+  return h + '</g>';
+}
+
+function drawBoard(){
+  if(!B) return;
+  const C = B.C; let h = '';
+  C.wires.forEach(w => {
+    const a = nodeById(w.from), b = nodeById(w.to); if(!a || !b) return;
+    const v = evalNode(w.from, null, new Set()), sel = B.sel && B.sel.k === 'w' && B.sel.id === w.id;
+    const d = wirePath(outPos(a), inPos(b, w.port));
+    h += '<path class="wire '+(v === null ? 'vn' : 'v'+v)+(sel ? ' sel' : '')+'" d="'+d+'"/><path class="wirehit" data-wid="'+w.id+'" d="'+d+'"/>';
+  });
+  C.nodes.forEach(n => { h += nodeSvg(n); });
+  C.nodes.forEach(n => {     // ports on top so they win the hit test
+    for(let i = 0; i < GD[n.type].ins; i++){ const p = inPos(n,i);
+      h += '<circle class="porthit" data-port-kind="in" data-nid="'+n.id+'" data-port="'+i+'" cx="'+p[0]+'" cy="'+p[1]+'" r="15"/><circle class="port" cx="'+p[0]+'" cy="'+p[1]+'" r="6" pointer-events="none"/>'; }
+    if(n.type !== 'led'){ const p = outPos(n);
+      h += '<circle class="porthit" data-port-kind="out" data-nid="'+n.id+'" data-port="0" cx="'+p[0]+'" cy="'+p[1]+'" r="15"/><circle class="port out" cx="'+p[0]+'" cy="'+p[1]+'" r="6" pointer-events="none"/>'; }
+  });
+  if(B.wiring){ const w = B.wiring, a = nodeById(w.from);
+    if(a){ const s = w.kind === 'out' ? outPos(a) : inPos(a, w.port);
+      h += '<path class="wire temp" d="'+(w.kind === 'out' ? wirePath(s, w.p) : wirePath(w.p, s))+'"/>'; } }
+  $('svg').innerHTML = h;
+  $('boardempty').classList.toggle('hidden', C.nodes.length > 0);
+  document.querySelectorAll('#palette .pal').forEach(b => {
+    const k = b.dataset.kind;
+    b.disabled = (k === 'sw' && C.nodes.some(n => n.type === 'sw' && n.label === b.dataset.name)) || (k === 'led' && C.nodes.some(n => n.type === 'led'));
+  });
+}
+
+
+/* structure check + code lock */
+function sig(){ const C = B.C;
+  return JSON.stringify([C.nodes.map(n => [n.id, n.type, n.label || '']), C.wires.map(w => [w.from, w.to, w.port]).sort()]); }
+function setLock(locked){
+  const i = $('code'), v = $('verify'), m = $('lockmsg'); if(!i || !B) return;
+  i.disabled = locked; v.disabled = locked;
+  i.placeholder = locked ? 'Run the tests first' : '0'.repeat(B.q.t.rows.length);
+  if(m) m.classList.toggle('hidden', !locked);
+}
+function tree(id, seen){
+  const n = nodeById(id); if(!n) return {t:'x'};
+  if(n.type === 'sw') return {t:'sw', v:n.label};
+  if(seen.has(id)) return {t:'cycle'};
+  const s2 = new Set(seen); s2.add(id); const kids = [];
+  for(let i = 0; i < GD[n.type].ins; i++){ const w = B.C.wires.find(w => w.to === id && w.port === i); if(w) kids.push(tree(w.from, s2)); }
+  if(n.type === 'led') return kids[0] || {t:'x'};
+  return {t:n.type, k:kids};
+}
+function tstr(t){
+  if(t.t === 'sw') return 'S:' + t.v;
+  if(t.t === 'not') return 'NOT(' + (t.k[0] ? tstr(t.k[0]) : '') + ')';
+  if(t.t === 'and' || t.t === 'or'){ const parts = [];
+    (function add(c){ if(c.t === t.t) c.k.forEach(add); else parts.push(tstr(c)); })(t);   // nested gates of the same type count as one wide gate
+    return t.t.toUpperCase() + '(' + parts.sort().join(',') + ')'; }
+  return '?';
+}
+function estr(e){
+  if(typeof e === 'string') return 'S:' + e;
+  if(e[0] === 'not') return 'NOT(' + estr(e[1]) + ')';
+  return e[0].toUpperCase() + '(' + e.slice(1).map(estr).sort().join(',') + ')';
+}
+function gateCounts(t, c){ c = c || {and:0, or:0, not:0};
+  if(t.k){ if(c[t.t] != null) c[t.t]++; t.k.forEach(k => gateCounts(k, c)); } return c; }
+function labelsIn(t, out){ out = out || new Set(); if(t.t === 'sw') out.add(t.v); (t.k || []).forEach(k => labelsIn(k, out)); return out; }
+function structureProblem(led){
+  const t = tree(led.id, new Set());
+  if(tstr(t) === estr(B.q.expect)) return null;
+  const have = labelsIn(t), missing = B.q.t.cols.filter(c => !have.has(c));
+  if(missing.length) return 'These switches are not wired into the output yet: ' + missing.join(', ') + '.';
+  const extra = [...have].filter(c => !B.q.t.cols.includes(c));
+  if(extra.length) return 'This question does not use: ' + extra.join(', ') + '. Remove it from the circuit.';
+  const want = gateCounts(tree0(B.q.expect)), got = gateCounts(t);
+  if(want.and !== got.and || want.or !== got.or || want.not !== got.not){
+    const parts = ['and','or','not'].filter(k => want[k]).map(k => want[k] + ' ' + k.toUpperCase());
+    return 'The outputs are shown, but this circuit does not match the question. Re-read the question and check which gates it needs.'; }
+  return 'The gate types are right but the wiring order is not. Re-read the question and check what feeds each gate.';
+}
+function tree0(e){ if(typeof e === 'string') return {t:'sw', v:e}; return {t:e[0], k:e.slice(1).map(tree0)}; }
+
+function clearBits(){ document.querySelectorAll('.bit').forEach(b => { b.textContent = '_'; b.classList.remove('f','run'); }); }
+
+function runTests(){
+  const q = B.q, C = B.C, led = C.nodes.find(n => n.type === 'led');
+  const missing = q.t.cols.filter(c => !C.nodes.some(n => n.type === 'sw' && n.label === c));
+  if(missing.length){ bmsg('Place these switches on the board first: ' + missing.join(', ') + '.', 'bad'); return; }
+  if(!led){ bmsg('Place the output lamp on the board and connect your circuit to it.', 'bad'); return; }
+  if(!C.wires.some(w => w.to === led.id)){ bmsg('Connect the last gate to the output lamp.', 'bad'); return; }
+  const res = q.t.rows.map(r => evalNode(led.id, r, new Set()));
+  clearBits();
+  if(res.some(v => v === null)){ bmsg('Some outputs are undefined. Check that every gate has its inputs wired and the lamp is connected to the end of the circuit.', 'bad'); return; }
+  document.querySelectorAll('.bit').forEach((b,i) => setTimeout(() => { b.textContent = res[i]; b.classList.add('f','run'); }, i * 110));
+  const problem = structureProblem(led);
+  if(problem){ B.ranSig = null; setLock(true); bmsg(problem, 'bad'); return; }
+  B.ranSig = sig(); setLock(false);
+  bmsg('Circuit accepted. Read the outputs from top to bottom, then enter the code below.', 'good');
+}
+
+/* ---------- final ---------- */
+function finish(){
+  clearInterval(tick); B = null;
+  const p = payload('completed'), solved = S.codes.filter(Boolean).length, all = solved === N;
+  const fs = $('fstamp'), sp = $('freveal').querySelectorAll('span');
+  if(all){ fs.textContent = 'FRAGMENT 04 RECOVERED'; fs.style.borderColor = 'var(--ok)'; fs.style.color = 'var(--ok)';
+    ['TEMPORAL LOCK DISABLED','TIME FRAGMENT #4 RECOVERED','TIMELINE RESTORED'].forEach((t,i) => sp[i].textContent = t); }
+  else { fs.textContent = 'TIME EXPIRED'; fs.style.borderColor = 'var(--bad)'; fs.style.color = 'var(--bad)';
+    ['TIME EXPIRED','CIRCUITS SOLVED: ' + solved + ' OF ' + N,'ROUND CLOSED'].forEach((t,i) => sp[i].textContent = t); }
+  $('timer').classList.add('hidden');
+  $('stats').innerHTML = '<div><b>'+fmt(p.completion_time)+'</b><span>Time used (limit '+fmt(TIME_LIMIT)+')</span></div>' +
+    '<div><b>'+solved+' / '+N+'</b><span>Circuits solved</span></div>' +
+    '<div><b>'+p.total_attempts+'</b><span>Code attempts</span></div>' +
+    '<div><b>'+p.hints_used+'</b><span>Hints used</span></div>' +
+    '<div><b>'+S.teamId+'</b><span>'+S.teamName.replace(/</g,'&lt;')+'</span></div>';
+  show('s-final'); renderRing(); showSync();
+}
+function showSync(){
+  const el = $('sync'), rb = $('retrybtn');
+  if(S.synced){ el.className = 'sync ok'; el.textContent = 'Results saved to the organizers. You can close this page.'; rb.classList.add('hidden'); }
+  else { el.className = 'sync warn'; el.textContent = 'Results are not saved to the server yet. Keep this page open, check your network, and retry. Tell an organizer if it keeps failing.'; rb.classList.remove('hidden'); }
+}
+$('retrybtn').addEventListener('click', async () => { $('retrybtn').disabled = true; await sync('completed'); $('retrybtn').disabled = false; showSync(); });
+window.addEventListener('online', () => { ping(); if(S && S.finished && !S.synced) sync('completed').then(showSync); });
+
+/* ---------- organizer ---------- */
+const dlg = $('orgdlg');
+function download(name, text){
+  const blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const COLS = ['team_id','team_name','round_id','responses','completion_time','submitted_at','status','started_at','questions_completed','total_attempts','wrong_attempts','hints_used','timed_out','attempts_per_question'];
+const cell = v => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+function openOrg(){ $('orgstat').textContent = ''; if(!dlg.open) dlg.showModal(); $('orgkey').focus(); }
+$('orgbtn').addEventListener('click', openOrg);
+$('orgclose').addEventListener('click', () => dlg.close());
+if(location.hash === '#organizer') setTimeout(openOrg, 0);
+document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o'){ e.preventDefault(); openOrg(); } });
+$('orgdl').addEventListener('click', async () => {
+  const st = $('orgstat'); st.textContent = 'Fetching results…';
+  try{
+    const r = await fetch(API + '/api/' + ROUND_ID + '/export.csv', { headers:{'X-Organizer-Key': $('orgkey').value} });
+    if(r.status === 401){ st.textContent = 'Wrong organizer key.'; return; }
+    if(!r.ok){ st.textContent = 'Server error (' + r.status + ').'; return; }
+    const text = (await r.text()).replace(/^\ufeff/, '');
+    download('lost_timeline_' + ROUND_ID.toLowerCase() + '_results.csv', text);
+    st.textContent = 'Downloaded. Rows: ' + Math.max(0, text.trim().split(/\r?\n/).length - 1) + ' (excluding header).';
+  }catch(e){ st.textContent = 'Could not reach the server. Check that server.py is running, or use "This device only".'; }
+});
+$('orgloc').addEventListener('click', () => {
+  const all = Object.values(lsGet(LS_LOCAL, {}));
+  if(!all.length){ $('orgstat').textContent = 'No results stored on this device yet.'; return; }
+  download('lost_timeline_' + ROUND_ID.toLowerCase() + '_device_results.csv', [COLS.join(',')].concat(all.map(o => COLS.map(c => cell(o[c])).join(','))).join('\r\n') + '\r\n');
+  $('orgstat').textContent = 'Downloaded ' + all.length + ' team(s) stored on this device. This is not the shared data for the whole event.';
+});
+
+/* ---------- boot ---------- */
+ping();
+const saved = lsGet(LS_STATE, null);
+if(saved){ $('teamid').value = saved.teamId; $('teamname').value = saved.teamName; }
+})();
+</script>
+</body>
+</html>
