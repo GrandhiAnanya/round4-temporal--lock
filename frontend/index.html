@@ -38,7 +38,7 @@ button,input{font:inherit;color:inherit}
 .chip{border:1px solid var(--line-2);padding:5px 12px;font-size:.82rem;color:var(--muted);background:var(--panel)}
 .chip b{color:var(--text);font-weight:600}
 .timer{font-family:var(--display);font-size:.95rem;color:var(--cyan);text-align:right;font-variant-numeric:tabular-nums}
-.timer::before{content:"Time left";font-family:var(--body);font-size:.62rem;color:var(--muted);margin-right:10px;letter-spacing:.1em}
+.timer::before{content:"Elapsed";font-family:var(--body);font-size:.62rem;color:var(--muted);margin-right:10px;letter-spacing:.1em}
 .timer.low{color:var(--bad);text-shadow:0 0 12px rgba(255,77,109,.6);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:.45}}
 .net{font-size:.78rem;padding:4px 10px;border:1px solid var(--line-2);color:var(--muted)}
@@ -267,7 +267,7 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
   <div class="meta">Round 04 · Fragment 04 · Year 3026</div>
   <div class="spacer"></div>
   <div class="chip hidden" id="teamchip">Team <b id="chipid"></b> · <span id="chipname"></span></div>
-  <div class="timer hidden" id="timer" aria-label="Time remaining">00:00</div>
+  <div class="timer hidden" id="timer" aria-label="Elapsed time">00:00</div>
   <div class="net" id="net">Checking server…</div>
 </header>
 
@@ -283,8 +283,8 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
   <form class="card" id="loginform" autocomplete="off" novalidate>
     <h2 style="font-size:1.1rem">Register your crew</h2>
     <label for="teamid">Team ID</label>
-    <input type="text" id="teamid" placeholder="TL-001" maxlength="12" autocapitalize="characters" spellcheck="false">
-    <div class="help">Use the ID given by the organizers. It stays the same in all four rounds.</div>
+    <input type="text" id="teamid" placeholder="BLUE7 or TEAM-A" maxlength="30" autocapitalize="characters" spellcheck="false">
+    <div class="help">Choose the Team ID provided by your organizers. Letters, numbers, hyphens and underscores are accepted.</div>
     <label for="teamname">Team name</label>
     <input type="text" id="teamname" placeholder="e.g. Quantum Drifters" maxlength="40">
     <div class="err" id="loginerr" role="alert"></div>
@@ -307,7 +307,7 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
     <div><b>OR</b>1 if any input is 1</div>
     <div><b>NOT</b>flips the input</div>
   </div>
-  <p class="note" style="margin:-8px 0 22px">3 questions: 1 easy, 1 medium, 1 hard. You have 10 minutes for the whole round. The countdown starts when you press the button and the round closes when it reaches zero.</p>
+  <p class="note" style="margin:-8px 0 22px">You will receive one Easy, one Medium, and one Hard question. The timer counts up to record your elapsed time; there is no countdown. Navigate between all three questions. Your final submission is available on Question 3.</p>
   <button class="btn" id="beginbtn">Start the mission</button>
 </section>
 
@@ -361,323 +361,85 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
 <script>
 (function(){
 'use strict';
-
-/* ---------- CONFIG ---------- */
-const ROUND_ID = 'R4';
-const ROUND_TITLE = 'The Temporal Lock';
-const TEAM_ID_PATTERN = /^TL-\d{3}$/;              // change here if your Team ID format differs
-const API = new URLSearchParams(location.search).get('api')
-          || (location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '');
-const HASHES = {"Q1":6340331123719632,"Q2":3545818118725403,"Q3":7221613178130369,"Q4":4829485462002235,"Q5":8075456704113698,"Q6":1253322376826786,"Q7":1329403736284329,"Q8":598746646669141,"Q9":3015032093146405,"Q10":833171155108176};
-const SALT = 'TL-R4-chrono-3026';
-const LS_STATE = 'lt_' + ROUND_ID + '_state_v4';
-const LS_LOCAL = 'lt_' + ROUND_ID + '_localresults';
-
-/* ---------- QUESTIONS ---------- */
-const T = (cols, rows) => ({cols, rows});
-const ALL_QUESTIONS = [
- { id:'Q1', expect:['and','Power A','Power B'], level:'easy', title:'Power Check',
-   story:'The Chrono-Core’s power supply is being tested. Both power switches must be ON for the system to activate.',
-   connect:['Power Switch A and Power Switch B to the two inputs of an AND gate.'],
-   out:'Core output', t:T(['Power A','Power B'],[[0,1],[1,0],[1,1]]),
-   hint:'The output is 1 only when every input is ON.' },
- { id:'Q2', expect:['or','Navigation','Shield'], level:'easy', title:'Emergency Beacon',
-   story:'The emergency beacon can be activated by either backup system.',
-   connect:['Backup Navigation and Backup Shield to the two inputs of an OR gate.'],
-   out:'Core output', t:T(['Navigation','Shield'],[[0,1],[1,0],[1,1]]),
-   hint:'The output is 1 when at least one input is ON.' },
- { id:'Q3', expect:['not','Emergency Override'], level:'easy', title:'Override Reversal',
-   story:'The Core must reverse the Emergency Override signal. When Override is OFF, the reversed signal should be ON.',
-   connect:['Emergency Override to a NOT gate.'],
-   out:'Core output', t:T(['Emergency Override'],[[1]]),
-   note:'This one has one row, so the code has one digit.',
-   hint:'The output is always the opposite of the input.' },
- { id:'Q4', expect:['and','Power Safety','Navigation Safety'], level:'easy', title:'Safety Chamber',
-   story:'The time-travel chamber activates only when both safety switches are ON.',
-   connect:['Power Safety and Navigation Safety to an AND gate.'],
-   out:'Core output', t:T(['Power Safety','Navigation Safety'],[[0,1],[1,0],[1,1]]),
-   hint:'Only one row has both inputs ON.' },
- { id:'Q5', expect:['and','Power',['not','Override']], level:'medium', title:'Disable the Override',
-   story:'The Core requires Main Power ON and Emergency Override OFF.',
-   connect:['Emergency Override to a NOT gate.','Main Power and the NOT output to an AND gate.'],
-   out:'Core output', t:T(['Power','Override'],[[0,1],[1,0],[1,1]]),
-   hint:'Override must be OFF and Power must be ON. Check each row against both.' },
- { id:'Q6', expect:['and',['or','Navigation','Shield'],'Power'], level:'medium', title:'Restore Navigation',
-   story:'Navigation can be restored through either backup system, but Main Power must also be ON.',
-   connect:['Backup Navigation and Backup Shield to an OR gate.','The OR output and Main Power to an AND gate.'],
-   out:'Core output', t:T(['Navigation','Shield','Power'],[[0,1,1],[1,0,1],[1,1,1]]),
-   hint:'Check each row: is at least one backup ON, and is Power ON?' },
- { id:'Q7', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'medium', title:'Chrono-Core Conditions',
-   story:'The Core activates only when Power is ON, Navigation OR Shield is ON, and Emergency Override is OFF.',
-   connect:['Navigation and Shield to an OR gate.','Emergency Override to a NOT gate.','Power, the OR output and the NOT output to an AND gate.'],
-   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,0,1,0],[1,1,0,0],[1,1,1,1]]),
-   hint:'All three conditions must hold in the same row.' },
- { id:'Q8', expect:['or','Navigation','Shield'], level:'medium', title:'Backup Logic Repair',
-   story:'A damaged backup circuit must activate when Navigation OR Shield is ON, but remain OFF when both are OFF.',
-   connect:['Navigation and Shield to an OR gate.'],
-   out:'Core output', t:T(['Navigation','Shield'],[[0,1],[1,0],[1,1]]),
-   hint:'The output is 1 if at least one input is ON.' },
- { id:'Q9', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'hard', title:'Reconstruct the Temporal Lock',
-   story:'The original circuit has been erased. Mission Control recovered the conditions: Main Power must be ON; Navigation OR Shield must be ON; Emergency Override must be OFF.',
-   connect:['Navigation and Shield to an OR gate.','Emergency Override to a NOT gate.','Power, the OR output and the NOT output to a final AND gate.'],
-   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,1,0,0],[1,0,1,1],[1,1,1,0]]),
-   hint:'Check each row against all three conditions. One failed condition makes the output 0.' },
- { id:'Q10', expect:['and','Power',['or','Navigation','Shield'],['not','Override']], level:'hard', title:'Final Chrono-Core Activation',
-   story:'The final Time Fragment is inside the Core. Build the activation circuit using the same recovered conditions: Power ON; at least one of Navigation or Shield ON; Emergency Override OFF.',
-   connect:['Build Navigation OR Shield.','Invert Emergency Override using NOT.','AND the Power, the backup OR result and the inverted Override.'],
-   out:'Core output', t:T(['Power','Navigation','Shield','Override'],[[1,0,0,0],[1,1,0,0],[1,0,1,0],[1,1,1,1]]),
-   note:'This one has four rows, so the code has four digits.',
-   hint:'Read every row carefully. Which of Power, backup and Override fails in each one?' }
-];
-const N = 3;                    // questions per team: one easy, one medium, one hard
-const TIME_LIMIT = 600;         // seconds for the whole round (10 minutes)
-const LEVELS = ['easy','medium','hard'];
-let QUESTIONS = [];             // this team's 3 questions, set by loadSet()
-function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-/* same Team ID always gets the same 3 questions (survives refresh and other devices); every team gets one question from each difficulty tier */
-function pickSet(teamId){
-  const rnd = mulberry(h53('R4-set-' + teamId) >>> 0);
-  return LEVELS.map(l => { const pool = ALL_QUESTIONS.filter(q => q.level === l); return pool[Math.floor(rnd() * pool.length)].id; });
+const ROUND_ID='R4';
+const API ="https://round4-temporal-lock-backend.onrender.com";
+const LS_STATE='lt_R4_frontend_v1';
+const LEVELS=['easy','medium','hard'];
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const fmt=s=>pad(Math.floor(s/60))+':'+pad(s%60);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function show(id){['s-login','s-brief','s-play','s-final'].forEach(s=>$(s).classList.toggle('hidden',s!==id));window.scrollTo(0,0);}
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+async function api(path,opts){const r=await fetch(API+'/api/R4'+path,Object.assign({headers:{'Content-Type':'application/json'}},opts||{}));let data={};try{data=await r.json();}catch(e){}if(!r.ok){const e=new Error(data.message||data.error||('Request failed ('+r.status+')'));e.status=r.status;e.data=data;throw e;}return data;}
+function setNet(ok,msg){const n=$('net');n.textContent=msg||(ok?'Shared storage connected':'Server unavailable');n.className='net '+(ok?'ok':'warn');}
+async function ping(){try{await api('/health',{headers:{}});setNet(true);}catch(e){setNet(false,'Server unavailable');}}
+let S=null, QUESTIONS=[], tick=null, saveTimer=null;
+const POOL=['Power A','Power B','Power','Power Safety','Navigation','Navigation Safety','Shield','Emergency Override','Override','Engine','Cooling System','Hyperdrive'];
+function stateFromServer(data){
+  const qs=data.assigned_questions||[];
+  return {teamId:data.team_id,teamName:data.team_name,assigned:qs,startedAt:data.started_at||null,status:data.status||'registered',q:Math.min(2,Number(data.current_question_index)||0),drafts:Object.assign({},data.draft_answers||{}),attemptsByQuestion:data.attempts_by_question||{},totalAttempts:data.total_attempts||0,circuits:{},points:data.points||0,finished:data.status==='completed',timeTakenSeconds:data.time_taken_seconds};
 }
-function loadSet(){ if(!S.set) S.set = pickSet(S.teamId); QUESTIONS = S.set.map(id => ALL_QUESTIONS.find(q => q.id === id)); }
-/* every component offered on every question: the real switches from all questions plus a few that no question uses */
-const POOL = ['Power A','Power B','Power','Power Safety','Navigation','Navigation Safety','Shield','Emergency Override','Override','Engine','Cooling System','Hyperdrive'];
-
-/* ---------- helpers ---------- */
-const $ = id => document.getElementById(id);
-function h53(str, seed){seed=seed||0;let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
-const isRight = (qid, code) => HASHES[qid] === h53(SALT + qid + code);
-const pad = n => String(n).padStart(2,'0');
-const fmt = s => pad(Math.floor(s/60)) + ':' + pad(s%60);
-const nowIso = () => new Date().toISOString();
-function show(id){ ['s-login','s-brief','s-play','s-final'].forEach(s => $(s).classList.toggle('hidden', s !== id)); window.scrollTo(0,0); }
-function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
-function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-
-/* ---------- state ---------- */
-let S = null;      // {teamId, teamName, startedAt, q, codes[], attempts[], wrong, hintsUsed, hintShown[], finished, finishedAt, synced}
-let online = false;
-let tick = null;
-
-function newState(teamId, teamName){
-  return { teamId, teamName, startedAt:null, q:0, codes:Array(N).fill(''), attempts:Array(N).fill(0),
-           wrong:0, hintsUsed:0, hintShown:Array(N).fill(false), finished:false, finishedAt:null, synced:false, circuits:{}, set:pickSet(teamId), timedOut:false };
-}
-const saveState = () => S && lsSet(LS_STATE, S);
-const elapsed = () => {
-  const end = S.finishedAt || Date.now();
-  return Math.max(0, Math.round((end - S.startedAt)/1000));
-};
-const remaining = () => Math.max(0, Math.ceil((S.startedAt + TIME_LIMIT*1000 - Date.now())/1000));
-function renderClock(){ const r = remaining(), t = $('timer'); t.textContent = fmt(r); t.classList.toggle('low', r <= 60); }
-function timeUp(){
-  if(!S || S.finished) return;
-  S.finished = true; S.timedOut = true; S.finishedAt = S.startedAt + TIME_LIMIT*1000; saveState();
-  finish(); sync('completed').then(showSync);
-}
-
-/* ---------- API ---------- */
-async function api(path, opts){
-  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
-  try{
-    const r = await fetch(API + '/api/' + ROUND_ID + path, Object.assign({signal:ctl.signal}, opts||{}));
-    let data = {}; try{ data = await r.json(); }catch(e){}
-    return { status:r.status, ok:r.ok, data };
-  } finally { clearTimeout(to); }
-}
-function setNet(ok){
-  online = ok; const n = $('net');
-  n.textContent = ok ? 'Shared storage connected' : 'Offline: results stay on this device';
-  n.className = 'net ' + (ok ? 'ok' : 'warn');
-}
-async function ping(){ try{ const r = await api('/health'); setNet(r.ok); }catch(e){ setNet(false); } }
-
-function payload(status){
-  const responses = QUESTIONS.map((q,i) => S.codes[i] ? q.id + '=' + S.codes[i] : null).filter(Boolean).join(';');
-  return {
-    team_id:S.teamId, team_name:S.teamName, round_id:ROUND_ID, status,
-    responses, completion_time: status === 'completed' ? elapsed() : '',
-    started_at:new Date(S.startedAt).toISOString(),
-    questions_completed:S.codes.filter(Boolean).length,
-    total_attempts:S.attempts.reduce((a,b) => a+b, 0), wrong_attempts:S.wrong, hints_used:S.hintsUsed, timed_out:S.timedOut ? 1 : 0,
-    attempts_per_question:QUESTIONS.map((q,i) => q.id + '=' + S.attempts[i]).join(';')
-  };
-}
-function stashLocal(p){
-  const all = lsGet(LS_LOCAL, {});
-  all[p.team_id] = Object.assign({}, p, { submitted_at: p.status === 'completed' ? (all[p.team_id] && all[p.team_id].submitted_at || nowIso()) : '' });
-  lsSet(LS_LOCAL, all);
-}
-async function sync(status){
-  const p = payload(status); stashLocal(p);
-  try{
-    const r = await api('/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p) });
-    setNet(r.ok || r.status === 409);
-    if(r.ok){ if(status === 'completed'){ S.synced = true; saveState(); } return true; }
-    return r.status === 409;   // already stored on the server
-  }catch(e){ setNet(false); return false; }
-}
-
-/* ---------- login ---------- */
-$('loginform').addEventListener('submit', async ev => {
-  ev.preventDefault();
-  const err = $('loginerr'); err.textContent = '';
-  const id = $('teamid').value.trim().toUpperCase().replace(/\s+/g,'');
-  const name = $('teamname').value.trim().replace(/\s+/g,' ');
-  if(!TEAM_ID_PATTERN.test(id)){ err.textContent = 'Team ID must look like TL-001. Check the ID the organizers gave you.'; return; }
-  if(name.length < 2){ err.textContent = 'Enter your team name (at least 2 characters).'; return; }
-  const btn = $('loginbtn'); btn.disabled = true; btn.textContent = 'Contacting server…';
-  try{
-    let remote = null;
-    try{
-      const r = await api('/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id:id, team_name:name}) });
-      setNet(true);
-      if(r.status === 409){
-        const m = { completed:'This team has already finished this round.',
-                    name_mismatch:'That Team ID is registered under a different team name. Use the original name.',
-                    name_taken:'That team name is already used by another Team ID.' };
-        err.textContent = m[r.data.error] || 'This registration was rejected by the server.'; return;
-      }
-      if(!r.ok){ err.textContent = (r.data && r.data.message) || 'Server rejected the registration.'; return; }
-      remote = r.data;
-    }catch(e){ setNet(false); }
-
-    const saved = lsGet(LS_STATE, null);
-    if(saved && saved.teamId === id && !saved.finished){ S = saved; S.teamName = name; S.circuits = S.circuits || {}; loadSet(); }
-    else if(saved && saved.teamId === id && saved.finished){
-      S = saved; loadSet(); $('chipid').textContent = S.teamId; $('chipname').textContent = S.teamName; $('teamchip').classList.remove('hidden');
-      $('timer').classList.remove('hidden'); finish(); return;
-    }
-    else {
-      S = newState(id, name); loadSet();
-      if(remote && remote.resumed && remote.started_at){           // continue on another device
-        S.startedAt = Date.parse(remote.started_at);
-        String(remote.responses || '').split(';').forEach(p => { const m = /^(Q\d+)=([01]+)$/.exec(p); const k = m ? S.set.indexOf(m[1]) : -1; if(k >= 0) S.codes[k] = m[2]; });
-        S.q = Math.min(S.codes.filter(Boolean).length, N-1);
-        S.wrong = +remote.wrong_attempts || 0; S.hintsUsed = +remote.hints_used || 0;
-      }
-    }
-    saveState();
-    $('chipid').textContent = S.teamId; $('chipname').textContent = S.teamName; $('teamchip').classList.remove('hidden');
-    if(S.startedAt){ startPlay(); } else { show('s-brief'); }
-  } finally { btn.disabled = false; btn.textContent = 'Enter the Chrono-Core'; }
+function elapsed(){if(!S||!S.startedAt)return 0;const start=Date.parse(S.startedAt);return Math.max(0,Math.floor((Date.now()-start)/1000));}
+function renderClock(){ $('timer').textContent=fmt(elapsed()); }
+function saveLocal(){if(S)lsSet(LS_STATE,S);}
+async function saveProgress(){if(!S||S.finished||!S.startedAt)return;try{await api('/progress',{method:'POST',body:JSON.stringify({team_id:S.teamId,current_question_index:S.q,draft_answers:S.drafts})});setNet(true);}catch(e){setNet(false,'Progress not synced');}}
+function scheduleSave(){saveLocal();clearTimeout(saveTimer);saveTimer=setTimeout(saveProgress,350);}
+$('loginform').addEventListener('submit',async ev=>{
+ ev.preventDefault();const err=$('loginerr');err.textContent='';
+ const id=$('teamid').value.trim().toUpperCase().replace(/\s+/g,'-');const name=$('teamname').value.trim().replace(/\s+/g,' ');
+ if(!/^[A-Z0-9][A-Z0-9_-]{0,29}$/.test(id)){err.textContent='Use 1–30 letters, numbers, hyphens or underscores. Start with a letter or number.';return;}
+ if(name.length<2){err.textContent='Enter a team name with at least 2 characters.';return;}
+ const btn=$('loginbtn');btn.disabled=true;btn.textContent='Connecting…';
+ try{
+   const data=await api('/register',{method:'POST',body:JSON.stringify({team_id:id,team_name:name})});
+   S=stateFromServer(data);QUESTIONS=S.assigned;
+   const saved=lsGet(LS_STATE,null);
+   if(saved&&saved.teamId===id){S.drafts=Object.assign({},S.drafts,saved.drafts||{});S.circuits=saved.circuits||{};S.q=Math.min(2,saved.q||S.q);}
+   QUESTIONS.forEach(q=>{if(!(q.id in S.drafts))S.drafts[q.id]='';});
+   $('chipid').textContent=S.teamId;$('chipname').textContent=S.teamName;$('teamchip').classList.remove('hidden');saveLocal();setNet(true);
+   if(S.finished){showFinal({points:S.points,time_taken_seconds:S.timeTakenSeconds,already_submitted:true});return;}
+   if(S.startedAt){startPlay();}else show('s-brief');
+ }catch(e){err.textContent=e.message==='name_mismatch'?'This Team ID is registered under another name.':e.message;setNet(false,'Could not register');}
+ finally{btn.disabled=false;btn.textContent='Enter the Chrono-Core';}
 });
-
-$('beginbtn').addEventListener('click', () => { S.startedAt = Date.now(); saveState(); sync('in_progress'); startPlay(); });
-
-/* ---------- play ---------- */
-function startPlay(){
-  while(S.q < N-1 && S.codes[S.q]) S.q++;      // resume after a refresh that happened right after a correct code
-  clearInterval(tick);
-  if(!S.finished && remaining() <= 0){ $('timer').classList.remove('hidden'); timeUp(); return; }
-  $('timer').classList.remove('hidden');
-  tick = setInterval(() => { if(S && S.startedAt && !S.finished){ if(remaining() <= 0) timeUp(); else renderClock(); } }, 250);
-  renderClock();
-  show('s-play'); renderRing(); renderQuestion();
-}
-
-function renderRing(){
-  const cx = 120, cy = 120, r = 96, gap = 8, seg = 360/N, span = seg - gap; let svg = '';
-  const pt = a => { const t = (a-90)*Math.PI/180; return [cx + r*Math.cos(t), cy + r*Math.sin(t)]; };
-  const doneCount = S.codes.filter(Boolean).length;
-  for(let i=0;i<N;i++){
-    const a0 = i*seg + gap/2, a1 = a0 + span, p0 = pt(a0), p1 = pt(a1);
-    const cls = 'seg' + (i < doneCount ? ' done' : (i === doneCount && !S.finished ? ' current' : ''));
-    svg += '<path class="'+cls+'" d="M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+r+' '+r+' 0 0 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+'"/>';
-  }
-  const label = S.finished ? 'OPEN' : 'Q' + (S.q+1);
-  svg += '<text class="ring-q" x="120" y="124" text-anchor="middle">'+label+'</text>';
-  svg += '<text class="ring-of" x="120" y="146" text-anchor="middle">'+(S.finished ? 'lock disabled' : 'of ' + N)+'</text>';
-  const ring = $('ring'); ring.innerHTML = svg; ring.classList.toggle('open', S.finished);
-  const lv = S.finished ? '' : QUESTIONS[S.q].level;
-  document.querySelectorAll('#levels div').forEach(d => d.classList.toggle('on', d.dataset.l === lv));
-}
-
+$('beginbtn').addEventListener('click',async()=>{
+ const b=$('beginbtn');b.disabled=true;
+ try{const data=await api('/start',{method:'POST',body:JSON.stringify({team_id:S.teamId})});S.startedAt=data.started_at;S.status=data.status;saveLocal();startPlay();}
+ catch(e){$('loginerr').textContent='Could not start the round: '+e.message;setNet(false);}
+ finally{b.disabled=false;}
+});
+function startPlay(){clearInterval(tick);$('timer').classList.remove('hidden');tick=setInterval(renderClock,250);renderClock();show('s-play');renderRing();renderQuestion();}
+function renderRing(){const cx=120,cy=120,r=96,gap=8,seg=360/3,span=seg-gap;const pt=a=>{const t=(a-90)*Math.PI/180;return[cx+r*Math.cos(t),cy+r*Math.sin(t)];};let svg='';for(let i=0;i<3;i++){const a0=i*seg+gap/2,a1=a0+span,p0=pt(a0),p1=pt(a1);svg+='<path class="seg'+(i===S.q?' current':'')+(i<S.q?' done':'')+'" d="M'+p0[0]+' '+p0[1]+' A'+r+' '+r+' 0 0 1 '+p1[0]+' '+p1[1]+'"/>';}svg+='<text class="ring-q" x="120" y="124" text-anchor="middle">Q'+(S.q+1)+'</text><text class="ring-of" x="120" y="146" text-anchor="middle">of 3</text>';$('ring').innerHTML=svg;document.querySelectorAll('#levels div').forEach((d,i)=>{d.classList.toggle('on',i===S.q);d.querySelector('span').textContent='Q'+(i+1);});}
 function renderQuestion(){
-  const q = QUESTIONS[S.q], rows = q.t.rows, n = rows.length;
-  const head = '<th>Test</th>' + q.t.cols.map(c => '<th>'+c+'</th>').join('') + '<th class="out">'+q.out+'</th>';
-  const body = rows.map((r,i) => '<tr><td class="t">'+(i+1)+'</td>' +
-      r.map(v => '<td><span class="pill '+(v?'on':'off')+'">'+(v?'ON':'OFF')+'</span></td>').join('') +
-      '<td class="out"><span class="bit" data-bit="'+i+'">_</span></td></tr>').join('');
-  $('qcard').innerHTML =
-    '<div class="qhead"><span class="tag">Question '+(S.q+1)+' of '+N+'</span><span class="lvl '+q.level+'">'+q.level[0].toUpperCase()+q.level.slice(1)+'</span></div>' +
-    '<h2 class="qtitle">'+q.title+'</h2>' +
-    '<p class="story">'+q.story+'</p>' +
-    '<div class="gatekey" aria-label="Gate reference" style="margin:18px 0 0"><div><b>AND</b>1 only if all inputs are 1</div><div><b>OR</b>1 if any input is 1</div><div><b>NOT</b>flips the input</div></div>' +
-    '<div class="tablewrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>' +
-    '<div class="builder" id="builder">' +
-      '<div class="bhead"><b>Circuit board</b><span>Drag parts onto the board. Drag from a round port to another port to wire them. Click a switch to flip it.</span></div>' +
-      '<div class="palette" id="palette"></div>' +
-      '<div class="board" id="board"><svg id="svg" aria-label="Circuit board"></svg><div class="empty" id="boardempty">Drag the switches, a gate and the output lamp here</div></div>' +
-      '<div class="btools"><button type="button" class="btn cyan" id="runbtn">Run all tests</button>' +
-      '<button type="button" class="btn ghost" id="delbtn">Delete selected</button>' +
-      '<button type="button" class="btn ghost" id="clrbtn">Clear board</button></div>' +
-      '<div class="bmsg" id="bmsg" role="status" aria-live="polite">AND and OR gates have three input ports. Unused ports are ignored.</div>' +
-    '</div>' +
-    '<form id="codeform" autocomplete="off" novalidate>' +
-      '<label for="code" style="margin-top:0">Activation code ('+n+' digits, top to bottom)</label>' +
-      '<div class="codebox"><input type="text" id="code" inputmode="numeric" maxlength="'+n+'" placeholder="'+'0'.repeat(n)+'" aria-describedby="fb">' +
-      '<button class="btn" type="submit" id="verify">Verify code</button></div>' +
-      '<div class="note lockmsg" id="lockmsg">Build the circuit exactly as the question describes, then press Run all tests to unlock the code box.</div>' +
-      '<div class="note">'+(q.note ? q.note + ' ' : '')+'Enter only 0s and 1s, not gate names. Keep leading zeros.</div>' +
-      '<div class="fb" id="fb" role="status" aria-live="polite"></div>' +
-      '<div class="hintrow" id="hintrow"></div>' +
-    '</form><div id="clearedslot"></div>';
-  const input = $('code');
-  input.addEventListener('input', () => { input.value = input.value.replace(/[^01]/g,'').slice(0,n); });
-  initBuilder(q);
-  $('codeform').addEventListener('submit', ev => { ev.preventDefault(); verify(); });
-  if(S.hintShown[S.q]) showHint(true);
-  else if(S.attempts[S.q] - 0 >= 2) offerHint();
-  input.focus({preventScroll:true});
+ const q=QUESTIONS[S.q];if(!q){$('qcard').innerHTML='<p>Could not load your assigned questions. Please refresh or contact an organizer.</p>';return;}
+ const rows=q.t.rows,n=rows.length;const head='<th>Test</th>'+q.t.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th class="out">'+esc(q.out||'Core output')+'</th>';
+ const body=rows.map((r,i)=>'<tr><td class="t">'+(i+1)+'</td>'+r.map(v=>'<td><span class="pill '+(v?'on':'off')+'">'+(v?'ON':'OFF')+'</span></td>').join('')+'<td class="out"><span class="bit" data-bit="'+i+'">_</span></td></tr>').join('');
+ const draft=S.drafts[q.id]||'';const last=S.q===2;
+ $('qcard').innerHTML='<div class="qhead"><span class="tag">Question '+(S.q+1)+' of 3</span><span class="lvl '+q.level+'">'+esc(q.level[0].toUpperCase()+q.level.slice(1))+'</span></div><h2 class="qtitle">'+esc(q.title)+'</h2><p class="story">'+esc(q.story)+'</p><div class="gatekey" aria-label="Gate reference" style="margin:18px 0 0"><div><b>AND</b>1 only if all inputs are 1</div><div><b>OR</b>1 if any input is 1</div><div><b>NOT</b>flips the input</div></div><div class="tablewrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div><div class="builder" id="builder"><div class="bhead"><b>Circuit board</b><span>Drag parts onto the board. Drag from a round port to another port to wire them. Click a switch to flip it.</span></div><div class="palette" id="palette"></div><div class="board" id="board"><svg id="svg" aria-label="Circuit board"></svg><div class="empty" id="boardempty">Drag the switches, a gate and the output lamp here</div></div><div class="btools"><button type="button" class="btn cyan" id="runbtn">Run all tests</button><button type="button" class="btn ghost" id="delbtn">Delete selected</button><button type="button" class="btn ghost" id="clrbtn">Clear board</button></div><div class="bmsg" id="bmsg" role="status" aria-live="polite">Build the circuit described in the question, then run the test rows.</div></div><div id="answerarea"><label for="code" style="margin-top:0">Activation code ('+n+' digits, top to bottom)</label><div class="codebox"><input type="text" id="code" inputmode="numeric" maxlength="'+n+'" placeholder="'+'0'.repeat(n)+'" value="'+esc(draft)+'"><button class="btn ghost" type="button" id="saveanswer">Save draft</button><button class="btn" type="button" id="tryanswer">Try code</button></div><div class="note">Enter only 0s and 1s. Keep leading zeros. You can revisit and change this answer before final submission.</div><div class="fb" id="fb" role="status" aria-live="polite"></div><div class="hintrow" id="hintrow"></div></div><div class="navrow" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px"><button type="button" class="btn ghost" id="prevbtn" '+(S.q===0?'disabled':'')+'>Previous question</button><button type="button" class="btn ghost" id="nextbtn" '+(last?'disabled':'')+'>Next question</button>'+(last?'<button type="button" class="btn cyan" id="submitround">Submit all answers</button>':'')+'</div>';
+ initBuilder(q);
+ const code=$('code');code.addEventListener('input',()=>{code.value=code.value.replace(/[^01]/g,'').slice(0,n);S.drafts[q.id]=code.value;scheduleSave();});
+ $('saveanswer').addEventListener('click',()=>{const v=code.value.trim();S.drafts[q.id]=v;scheduleSave();$('fb').className='fb';$('fb').textContent='Answer saved as a draft. Final submission is available on Question 3.';});
+ $('tryanswer').addEventListener('click',async()=>{const value=code.value.trim();const fb=$('fb');fb.className='fb';if(!B||!B.ranSig||B.ranSig!==sig()){fb.className='fb bad';fb.textContent='Build the circuit and run all tests before trying a code.';return;}if(value.length!==n||!/^[01]+$/.test(value)){fb.className='fb bad';fb.textContent='Enter exactly '+n+' binary digits, including leading zeros.';return;}S.drafts[q.id]=value;scheduleSave();const b=$('tryanswer');b.disabled=true;b.textContent='Checking…';try{const result=await api('/attempt',{method:'POST',body:JSON.stringify({team_id:S.teamId,question_id:q.id,code:value})});S.attemptsByQuestion=S.attemptsByQuestion||{};S.attemptsByQuestion[q.id]=result.attempts_for_question;S.totalAttempts=result.total_attempts||((S.totalAttempts||0)+1);saveLocal();fb.className='fb '+(result.correct?'good':'bad');fb.textContent=result.correct?'Correct code! It will count for 5 points if it is still correct at final submission. You can continue exploring or change it before submitting.':'Incorrect code. You can try again; no points are deducted for a wrong trial.';}catch(e){fb.className='fb bad';fb.textContent='Could not check this attempt: '+e.message;}finally{b.disabled=false;b.textContent='Try code';}});
+ $('prevbtn').addEventListener('click',()=>navigate(-1));$('nextbtn').addEventListener('click',()=>navigate(1));
+ if(last)$('submitround').addEventListener('click',submitRound);
 }
-
-function offerHint(){
-  const row = $('hintrow'); if(!row || row.querySelector('.hintbox') || row.querySelector('button')) return;
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = 'Show a hint';
-  b.addEventListener('click', () => showHint(false));
-  row.appendChild(b);
+function navigate(delta){if(!S)return;S.drafts[QUESTIONS[S.q].id]=$('code')?$('code').value.trim():(S.drafts[QUESTIONS[S.q].id]||'');S.q=Math.max(0,Math.min(2,S.q+delta));saveLocal();saveProgress().catch(()=>{});renderRing();renderQuestion();window.scrollTo(0,0);}
+async function submitRound(){
+ const q=QUESTIONS[S.q];if(S.q!==2){alert('Final submission is available only on Question 3.');return;}
+ S.drafts[q.id]=$('code').value.trim();saveLocal();const btn=$('submitround');btn.disabled=true;btn.textContent='Submitting…';
+ try{
+   const result=await api('/submit',{method:'POST',body:JSON.stringify({team_id:S.teamId,current_question_index:S.q,answers:S.drafts})});
+   S.finished=true;S.points=result.points;S.timeTakenSeconds=result.time_taken_seconds;S.status='completed';saveLocal();showFinal(result);
+ }catch(e){const fb=$('fb');fb.className='fb bad';fb.textContent='Submission failed: '+e.message+'. Your answers remain saved; you can try again.';btn.disabled=false;btn.textContent='Submit all answers';}
 }
-function showHint(restoring){
-  const q = QUESTIONS[S.q];
-  if(!restoring && !S.hintShown[S.q]){ S.hintShown[S.q] = true; S.hintsUsed++; saveState(); }
-  $('hintrow').innerHTML = '<div class="hintbox">Hint: '+q.hint+'</div>';
-}
-
-function verify(){
-  const q = QUESTIONS[S.q], n = q.t.rows.length, fb = $('fb'), val = $('code').value.trim();
-  fb.className = 'fb';
-  if(remaining() <= 0){ timeUp(); return; }
-  if(!B || !B.ranSig || B.ranSig !== sig()){ fb.classList.add('bad'); fb.textContent = 'Build the circuit and run the tests first.'; setLock(true); return; }
-  if(val.length !== n || /[^01]/.test(val)){ fb.classList.add('bad'); fb.textContent = 'Enter exactly '+n+' digits (0 or 1), including leading zeros.'; return; }
-  S.attempts[S.q]++;
-  if(isRight(q.id, val)){
-    S.codes[S.q] = val; saveState();
-    $('codeform').classList.add('hidden');
-    const last = S.q === N-1;
-    $('clearedslot').innerHTML = '<div class="cleared"><div><b>'+(last ? 'FINAL LOCK OPEN' : 'LEVEL CLEARED')+'</b><div class="note" style="margin:4px 0 0">Code '+val+' accepted.</div></div>' +
-      '<button class="btn cyan" id="nextbtn">'+(last ? 'Recover the fragment' : 'Unlock question '+(S.q+2))+'</button></div>';
-    renderRing();
-    if(last){ S.finished = true; S.finishedAt = Date.now(); saveState(); }
-    sync(last ? 'completed' : 'in_progress');
-    $('nextbtn').focus();
-    $('nextbtn').addEventListener('click', () => { if(last){ finish(); } else { S.q++; saveState(); renderRing(); renderQuestion(); window.scrollTo(0,0); } });
-  } else {
-    S.wrong++; saveState();
-    fb.classList.add('bad');
-    fb.textContent = 'Code rejected. Re-run the tests, read the outputs top to bottom, and try again.';
-    const c = document.querySelector('.codebox'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
-    $('code').select();
-    if(S.attempts[S.q] >= 2) offerHint();
-  }
-}
-
-
+function showFinal(result){clearInterval(tick);$('timer').classList.add('hidden');const points=result.points??S.points??0;const sec=result.time_taken_seconds??S.timeTakenSeconds??elapsed();$('fstamp').textContent='ROUND 4 SUBMITTED';$('freveal').querySelectorAll('span')[0].textContent='TEMPORAL LOCK RESULTS';$('freveal').querySelectorAll('span')[1].textContent='TIME TAKEN: '+fmt(sec);$('freveal').querySelectorAll('span')[2].textContent='TIMELINE RESTORED';$('stats').innerHTML='<div><b>'+points+' / 15</b><span>Total points</span></div><div><b>'+fmt(sec)+'</b><span>Elapsed time</span></div><div><b>'+esc(S.teamId)+'</b><span>Team ID</span></div><div><b>'+esc(S.teamName)+'</b><span>Team name</span></div>';const sync=$('sync');sync.className='sync ok';sync.textContent='Final results saved to the Round 4 database.';$('retrybtn').classList.add('hidden');show('s-final');}
+$('retrybtn').addEventListener('click',()=>{});
 /* ---------- circuit builder ---------- */
 const GD = { and:{w:76,h:72,ins:3}, or:{w:76,h:72,ins:3}, not:{w:64,h:72,ins:1}, sw:{w:164,h:44,ins:0}, led:{w:96,h:64,ins:1} };
 let B = null;   // {q, C, sel:{k:'n'|'w',id}, drag, wiring}
 const svgNS = 'http://www.w3.org/2000/svg';
-const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function inPos(n,i){ const g = GD[n.type]; return [n.x, n.y + (g.ins === 1 ? g.h/2 : 16 + i*20)]; }
 function outPos(n){ const g = GD[n.type]; return [n.x + g.w, n.y + (n.type === 'sw' ? 22 : g.h/2)]; }
@@ -878,12 +640,11 @@ function drawBoard(){
 }
 
 
-/* structure check + code lock */
 function sig(){ const C = B.C;
   return JSON.stringify([C.nodes.map(n => [n.id, n.type, n.label || '']), C.wires.map(w => [w.from, w.to, w.port]).sort()]); }
 function setLock(locked){
   const i = $('code'), v = $('verify'), m = $('lockmsg'); if(!i || !B) return;
-  i.disabled = locked; v.disabled = locked;
+  i.disabled = locked; if(v) v.disabled = locked;
   i.placeholder = locked ? 'Run the tests first' : '0'.repeat(B.q.t.rows.length);
   if(m) m.classList.toggle('hidden', !locked);
 }
@@ -934,78 +695,21 @@ function runTests(){
   const missing = q.t.cols.filter(c => !C.nodes.some(n => n.type === 'sw' && n.label === c));
   if(missing.length){ bmsg('Place these switches on the board first: ' + missing.join(', ') + '.', 'bad'); return; }
   if(!led){ bmsg('Place the output lamp on the board and connect your circuit to it.', 'bad'); return; }
-  if(!C.wires.some(w => w.to === led.id)){ bmsg('Connect the last gate to the output lamp.', 'bad'); return; }
+  if(!C.wires.some(w => w.to === led.id)){ bmsg('Connect the final gate to the output lamp.', 'bad'); return; }
   const res = q.t.rows.map(r => evalNode(led.id, r, new Set()));
   clearBits();
-  if(res.some(v => v === null)){ bmsg('Some outputs are undefined. Check that every gate has its inputs wired and the lamp is connected to the end of the circuit.', 'bad'); return; }
-  document.querySelectorAll('.bit').forEach((b,i) => setTimeout(() => { b.textContent = res[i]; b.classList.add('f','run'); }, i * 110));
-  const problem = structureProblem(led);
-  if(problem){ B.ranSig = null; setLock(true); bmsg(problem, 'bad'); return; }
+  if(res.some(v => v === null)){ bmsg('Some outputs are undefined. Check that every gate input is connected.', 'bad'); return; }
+  document.querySelectorAll('.bit').forEach((b,i) => { b.textContent = res[i]; b.classList.add('f','run'); });
   B.ranSig = sig(); setLock(false);
-  bmsg('Circuit accepted. Read the outputs from top to bottom, then enter the code below.', 'good');
+  bmsg('Tests complete. Read the outputs from top to bottom and enter the code. You can retry as many times as needed before final submission.', 'good');
 }
 
-/* ---------- final ---------- */
-function finish(){
-  clearInterval(tick); B = null;
-  const p = payload('completed'), solved = S.codes.filter(Boolean).length, all = solved === N;
-  const fs = $('fstamp'), sp = $('freveal').querySelectorAll('span');
-  if(all){ fs.textContent = 'FRAGMENT 04 RECOVERED'; fs.style.borderColor = 'var(--ok)'; fs.style.color = 'var(--ok)';
-    ['TEMPORAL LOCK DISABLED','TIME FRAGMENT #4 RECOVERED','TIMELINE RESTORED'].forEach((t,i) => sp[i].textContent = t); }
-  else { fs.textContent = 'TIME EXPIRED'; fs.style.borderColor = 'var(--bad)'; fs.style.color = 'var(--bad)';
-    ['TIME EXPIRED','CIRCUITS SOLVED: ' + solved + ' OF ' + N,'ROUND CLOSED'].forEach((t,i) => sp[i].textContent = t); }
-  $('timer').classList.add('hidden');
-  $('stats').innerHTML = '<div><b>'+fmt(p.completion_time)+'</b><span>Time used (limit '+fmt(TIME_LIMIT)+')</span></div>' +
-    '<div><b>'+solved+' / '+N+'</b><span>Circuits solved</span></div>' +
-    '<div><b>'+p.total_attempts+'</b><span>Code attempts</span></div>' +
-    '<div><b>'+p.hints_used+'</b><span>Hints used</span></div>' +
-    '<div><b>'+S.teamId+'</b><span>'+S.teamName.replace(/</g,'&lt;')+'</span></div>';
-  show('s-final'); renderRing(); showSync();
-}
-function showSync(){
-  const el = $('sync'), rb = $('retrybtn');
-  if(S.synced){ el.className = 'sync ok'; el.textContent = 'Results saved to the organizers. You can close this page.'; rb.classList.add('hidden'); }
-  else { el.className = 'sync warn'; el.textContent = 'Results are not saved to the server yet. Keep this page open, check your network, and retry. Tell an organizer if it keeps failing.'; rb.classList.remove('hidden'); }
-}
-$('retrybtn').addEventListener('click', async () => { $('retrybtn').disabled = true; await sync('completed'); $('retrybtn').disabled = false; showSync(); });
-window.addEventListener('online', () => { ping(); if(S && S.finished && !S.synced) sync('completed').then(showSync); });
 
-/* ---------- organizer ---------- */
-const dlg = $('orgdlg');
-function download(name, text){
-  const blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
-const COLS = ['team_id','team_name','round_id','responses','completion_time','submitted_at','status','started_at','questions_completed','total_attempts','wrong_attempts','hints_used','timed_out','attempts_per_question'];
-const cell = v => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
-function openOrg(){ $('orgstat').textContent = ''; if(!dlg.open) dlg.showModal(); $('orgkey').focus(); }
-$('orgbtn').addEventListener('click', openOrg);
-$('orgclose').addEventListener('click', () => dlg.close());
-if(location.hash === '#organizer') setTimeout(openOrg, 0);
-document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o'){ e.preventDefault(); openOrg(); } });
-$('orgdl').addEventListener('click', async () => {
-  const st = $('orgstat'); st.textContent = 'Fetching results…';
-  try{
-    const r = await fetch(API + '/api/' + ROUND_ID + '/export.csv', { headers:{'X-Organizer-Key': $('orgkey').value} });
-    if(r.status === 401){ st.textContent = 'Wrong organizer key.'; return; }
-    if(!r.ok){ st.textContent = 'Server error (' + r.status + ').'; return; }
-    const text = (await r.text()).replace(/^\ufeff/, '');
-    download('lost_timeline_' + ROUND_ID.toLowerCase() + '_results.csv', text);
-    st.textContent = 'Downloaded. Rows: ' + Math.max(0, text.trim().split(/\r?\n/).length - 1) + ' (excluding header).';
-  }catch(e){ st.textContent = 'Could not reach the server. Check that server.py is running, or use "This device only".'; }
-});
-$('orgloc').addEventListener('click', () => {
-  const all = Object.values(lsGet(LS_LOCAL, {}));
-  if(!all.length){ $('orgstat').textContent = 'No results stored on this device yet.'; return; }
-  download('lost_timeline_' + ROUND_ID.toLowerCase() + '_device_results.csv', [COLS.join(',')].concat(all.map(o => COLS.map(c => cell(o[c])).join(','))).join('\r\n') + '\r\n');
-  $('orgstat').textContent = 'Downloaded ' + all.length + ' team(s) stored on this device. This is not the shared data for the whole event.';
-});
-
-/* ---------- boot ---------- */
+const dlg=$('orgdlg');function openOrg(){$('orgstat').textContent='';if(!dlg.open)dlg.showModal();$('orgkey').focus();}
+$('orgbtn').addEventListener('click',openOrg);$('orgclose').addEventListener('click',()=>dlg.close());if(location.hash==='#organizer')setTimeout(openOrg,0);document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='o'){e.preventDefault();openOrg();}});
+$('orgdl').addEventListener('click',async()=>{const st=$('orgstat');st.textContent='Fetching results…';try{const r=await fetch(API+'/api/R4/export.csv',{headers:{'X-Organizer-Key':$('orgkey').value}});if(r.status===401){st.textContent='Wrong organizer key.';return;}if(!r.ok){st.textContent='Server error ('+r.status+').';return;}const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='round4_results.csv';a.click();URL.revokeObjectURL(a.href);st.textContent='Results downloaded.';}catch(e){st.textContent='Could not reach the backend.';}});
+$('orgloc').addEventListener('click',()=>{$('orgstat').textContent='Local-only export is disabled because Round 4 results are stored centrally on the backend.';});
 ping();
-const saved = lsGet(LS_STATE, null);
-if(saved){ $('teamid').value = saved.teamId; $('teamname').value = saved.teamName; }
 })();
 </script>
 </body>
