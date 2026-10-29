@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Temporal Lock | Admin & Results</title>
+
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #080b16;
+  --panel: #11182a;
+  --line: #263553;
+  --text: #edf3ff;
+  --muted: #9aabc9;
+  --cyan: #62e6ff;
+  --violet: #a98bff;
+  --green: #72f0b1;
+  --red: #ff8294;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 15% 0%, #202052 0, transparent 35%),
+    radial-gradient(ellipse at 100% 10%, #103448 0, transparent 30%),
+    var(--bg);
+  color: var(--text);
+  font: 15px/1.5 Inter, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 1500px;
+  margin: auto;
+  padding: 24px;
+}
+
+.top, .brand, .actions, .section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.top, .section-head {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #a98bff, #4b6bcb);
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: clamp(22px, 4vw, 32px);
+  margin: 2px 0;
+  font-weight: 800;
+}
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+
+.panel {
+  background: linear-gradient(145deg, #121a2df2, #0d1424f2);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.login {
+  max-width: 470px;
+  margin: 7vh auto;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+}
+
+label {
+  font-size: 13px;
+  color: #c5d2eb;
+}
+
+input, select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid #344465;
+  border-radius: 10px;
+  background: #090f1e;
+  color: var(--text);
+  font: inherit;
+}
+
+button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 11px 15px;
+  background: linear-gradient(110deg, #a98bff, #62dff8);
+  color: #07101e;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.secondary {
+  background: #19243b;
+  border-color: #344465;
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+.notice {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #18243a;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  margin: 12px 0;
+}
+
+.error { color: var(--red); }
+.success { color: var(--green); }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.stat {
+  background: #111a2d;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 17px;
+}
+
+.stat strong {
+  display: block;
+  font-size: 27px;
+}
+
+.stat span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1100px;
+  background: #0c1322;
+}
+
+th, td {
+  text-align: left;
+  padding: 13px 14px;
+  border-bottom: 1px solid #202d46;
+  vertical-align: top;
+}
+
+th {
+  background: #151f34;
+  color: #a9dfff;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+}
+
+td { font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+
+.pill {
+  display: inline-block;
+  border: 1px solid #36506a;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #b8edff;
+}
+
+.pill.done { border-color: #2f6b52; color: var(--green); }
+.pill.idle { border-color: #4a4f63; color: var(--muted); }
+
+.details {
+  white-space: pre-wrap;
+  max-width: 280px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.footer {
+  padding: 20px 4px;
+  color: #7485a5;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 650px) {
+  .wrap { padding: 14px; }
+  .panel { padding: 16px; }
+  .stats, .toolbar { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <div class="logo">⌛</div>
+    <div>
+      <div class="eyebrow">Chrono-Explorers // Control Room</div>
+      <h1 class="title">The Temporal Lock</h1>
+      <div class="muted">Round 4 · Admin & Results</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="refreshBtn" class="secondary hidden">↻ Refresh</button>
+    <button id="logoutBtn" class="secondary hidden">Log out</button>
+  </div>
+</header>
+
+<section id="loginPanel" class="panel login">
+  <div class="eyebrow">Restricted access</div>
+  <h2>Admin login</h2>
+  <p class="muted">Enter the admin credentials configured for this project.</p>
+
+  <form id="loginForm">
+    <div class="field">
+      <label for="teamId">Team ID</label>
+      <input id="teamId" required value="admin">
+    </div>
+
+    <div class="field">
+      <label for="teamName">Team Name</label>
+      <input id="teamName" required value="admin">
+    </div>
+
+    <button id="loginBtn" type="submit" style="width:100%">
+      Enter control room →
+    </button>
+  </form>
+
+  <div id="loginMessage" class="notice">
+    Enter <b>admin</b> in both fields. The first request can take up to a minute while the Render server wakes up.
+  </div>
+</section>
+
+<section id="dashboard" class="hidden">
+
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">Round 04 / Data archive</div>
+      <h2>Team results overview</h2>
+      <div class="muted small">Results loaded from the backend.</div>
+    </div>
+
+    <button id="exportBtn">↓ Export CSV</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <strong id="teamCount">—</strong>
+      <span>Registered teams</span>
+    </div>
+
+    <div class="stat">
+      <strong id="activeCount">—</strong>
+      <span>In progress</span>
+    </div>
+
+    <div class="stat">
+      <strong id="submittedCount">—</strong>
+      <span>Teams submitted</span>
+    </div>
+
+    <div class="stat">
+      <strong id="attemptCount">—</strong>
+      <span>Answer attempts recorded</span>
+    </div>
+  </div>
+
+  <div class="panel">
+
+    <div class="toolbar">
+      <input id="search" placeholder="Search Team ID or name...">
+
+      <select id="statusFilter">
+        <option value="all">All teams</option>
+        <option value="completed">Submitted</option>
+        <option value="in_progress">In progress</option>
+        <option value="registered">Not started</option>
+        <option value="perfect">Full marks (15/15)</option>
+      </select>
+
+      <select id="sortFilter">
+        <option value="name">Sort: Team name</option>
+        <option value="points">Sort: Points</option>
+        <option value="time">Sort: Time taken</option>
+        <option value="rank">Sort: Rank (points, then time)</option>
+      </select>
+    </div>
+
+    <div id="dataMessage" class="notice">Loading team results...</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Team ID</th>
+            <th>Team Name</th>
+            <th>Status</th>
+            <th>Questions They Got</th>
+            <th>Correct Answers</th>
+            <th>Answers They Wrote</th>
+            <th>Attempts</th>
+            <th>Points</th>
+            <th>Time Taken</th>
+          </tr>
+        </thead>
+        <tbody id="teamRows"></tbody>
+      </table>
+    </div>
+
+    <p class="muted small">
+      Time taken is measured by the backend from when the team started the round to their final submission.
+      Teams that have not submitted are shown as In progress / Not started.
+    </p>
+
+  </div>
+</section>
+
+<footer class="footer">
+  THE TEMPORAL LOCK · Admin results dashboard (local only — not deployed).
+</footer>
+
+</main>
+
+<script>
+const API_BASE_URL =
+  "https://round4-temporal-lock-backend.onrender.com";
+
+const ROUND_ID = "R4";
+
+let currentTeams = [];
+let adminSession = false;
+
+const $ = id => document.getElementById(id);
+
+const esc = value =>
+  String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+
+// Correct truth-table codes, copied from backend/questions.js.
+// Kept in this admin page only — keep in sync if questions change.
+const CORRECT_ANSWERS = {
+  Q1: "0001",
+  Q2: "0111",
+  Q3: "10",
+  Q4: "0001",
+  Q5: "0010",
+  Q6: "0111",
+  Q7: "0110",
+  Q8: "0111",
+  Q9: "0101",
+  Q10: "00110"
+};
+
+async function fetchTeams(teamId = "admin", teamName = "admin") {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/${ROUND_ID}/admin/results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ team_id: teamId, team_name: teamName })
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the backend. It may still be waking up (try again in a minute), or the latest server.js is not deployed yet."
+    );
+  }
+
+  const result = await response.json().catch(() => ({}));
+
+  if (response.status === 404) {
+    throw new Error("Admin endpoint not found — redeploy the backend with the latest server.js.");
+  }
+
+  if (!response.ok) {
+    throw new Error(result.message || `Request failed (${response.status})`);
+  }
+
+  return (result.teams || []).map(normalizeTeam);
+}
+
+function normalizeTeam(record) {
+  const time = record.time_taken_seconds;
+
+  return {
+    teamId: record.team_id,
+    teamName: record.team_name,
+    roundId: record.round_id || ROUND_ID,
+    status: record.status || "registered",
+    assignedQuestions: record.assigned_questions || [],
+    finalAnswers: record.final_answers || {},
+    questionScores: record.question_scores || {},
+    attemptsByQuestion: record.attempts_by_question || {},
+    totalAttempts: Number(record.total_attempts || 0),
+    totalPoints: Number(record.points || 0),
+    startedAt: record.started_at || "",
+    completedAt: record.completed_at || "",
+    timeTakenSeconds: time == null ? null : Number(time)
+  };
+}
+
+function formatDuration(seconds) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) {
+    return null;
+  }
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${remainingSeconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  return `${remainingSeconds}s`;
+}
+
+const STATUS_LABELS = {
+  completed: "Submitted",
+  in_progress: "In progress",
+  registered: "Not started"
+};
+
+function timeTakenLabel(team) {
+  return formatDuration(team.timeTakenSeconds) ||
+    STATUS_LABELS[team.status] || "In progress";
+}
+
+function questionsList(team) {
+  return team.assignedQuestions.join("\n") || "—";
+}
+
+function correctAnswersList(team) {
+  return team.assignedQuestions
+    .map(id => `${id}: ${CORRECT_ANSWERS[id] || "Answer unavailable"}`)
+    .join("\n") || "—";
+}
+
+function answersWrittenList(team) {
+  if (team.status !== "completed") return "No final submission yet";
+
+  return team.assignedQuestions
+    .map(id => {
+      const answer = team.finalAnswers[id] || "(blank)";
+      const mark = team.questionScores[id]?.correct ? "✓" : "✗";
+      return `${mark} ${id}: ${answer}`;
+    })
+    .join("\n") || "—";
+}
+
+function attemptsList(team) {
+  const lines = team.assignedQuestions
+    .map(id => `${id}: ${team.attemptsByQuestion[id] || 0}`);
+
+  return [`Total: ${team.totalAttempts}`, ...lines].join("\n");
+}
+
+function showMessage(element, message, kind = "") {
+  element.className = "notice " + kind;
+  element.textContent = message;
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const teamId = $("teamId").value.trim();
+  const teamName = $("teamName").value.trim();
+
+  if (
+    teamId.toLowerCase() !== "admin" ||
+    teamName.toLowerCase() !== "admin"
+  ) {
+    showMessage(
+      $("loginMessage"),
+      "Access denied. Enter admin in both fields.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+    $("loginBtn").disabled = true;
+    $("loginBtn").textContent = "Connecting...";
+
+    const teams = await fetchTeams(teamId, teamName);
+
+    adminSession = true;
+
+    $("loginPanel").classList.add("hidden");
+    $("dashboard").classList.remove("hidden");
+    $("refreshBtn").classList.remove("hidden");
+    $("logoutBtn").classList.remove("hidden");
+
+    await loadResults(teams);
+
+  } catch (error) {
+    showMessage(
+      $("loginMessage"),
+      error.message || "Unable to connect.",
+      "error"
+    );
+  } finally {
+    $("loginBtn").disabled = false;
+    $("loginBtn").textContent = "Enter control room →";
+  }
+});
+
+async function loadResults(prefetched) {
+  try {
+    showMessage($("dataMessage"), "Loading team results...");
+
+    currentTeams = prefetched || await fetchTeams();
+
+    render();
+
+    showMessage(
+      $("dataMessage"),
+      `Loaded ${currentTeams.length} team record(s) at ${new Date().toLocaleTimeString()}.`,
+      "success"
+    );
+
+  } catch (error) {
+    showMessage(
+      $("dataMessage"),
+      `Could not load results: ${error.message || error}`,
+      "error"
+    );
+  }
+}
+
+$("refreshBtn").addEventListener("click", () => loadResults());
+
+$("logoutBtn").addEventListener("click", () => {
+  adminSession = false;
+  currentTeams = [];
+
+  $("dashboard").classList.add("hidden");
+  $("loginPanel").classList.remove("hidden");
+  $("refreshBtn").classList.add("hidden");
+  $("logoutBtn").classList.add("hidden");
+
+  $("teamId").value = "admin";
+  $("teamName").value = "admin";
+
+  showMessage($("loginMessage"), "You have logged out.");
+});
+
+["search", "statusFilter", "sortFilter"].forEach(id => {
+  $(id).addEventListener(
+    id === "search" ? "input" : "change",
+    render
+  );
+});
+
+function render() {
+  if (!adminSession) return;
+
+  const query = $("search").value.toLowerCase().trim();
+  const status = $("statusFilter").value;
+  const sort = $("sortFilter").value;
+
+  let teams = currentTeams.filter(team =>
+    `${team.teamId} ${team.teamName}`.toLowerCase().includes(query)
+  );
+
+  teams = teams.filter(team =>
+    status === "all" ||
+    (status === "perfect" && team.totalPoints >= 15) ||
+    team.status === status
+  );
+
+  const byTime = (a, b) =>
+    (a.timeTakenSeconds ?? Infinity) - (b.timeTakenSeconds ?? Infinity);
+
+  teams.sort((a, b) => {
+    if (sort === "points") return b.totalPoints - a.totalPoints;
+    if (sort === "time") return byTime(a, b);
+    if (sort === "rank") return b.totalPoints - a.totalPoints || byTime(a, b);
+
+    return String(a.teamName || "").localeCompare(
+      String(b.teamName || "")
+    );
+  });
+
+  $("teamCount").textContent = currentTeams.length;
+
+  $("activeCount").textContent = currentTeams.filter(
+    team => team.status === "in_progress"
+  ).length;
+
+  $("submittedCount").textContent = currentTeams.filter(
+    team => team.status === "completed"
+  ).length;
+
+  $("attemptCount").textContent = currentTeams.reduce(
+    (total, team) => total + team.totalAttempts,
+    0
+  );
+
+  $("teamRows").innerHTML = teams.map(team => `
+    <tr>
+      <td>${esc(team.teamId || "—")}</td>
+
+      <td>${esc(team.teamName || "—")}</td>
+
+      <td>
+        <span class="pill ${team.status === "completed" ? "done" : team.status === "registered" ? "idle" : ""}">
+          ${esc(STATUS_LABELS[team.status] || team.status)}
+        </span>
+      </td>
+
+      <td>
+        <div class="details">${esc(questionsList(team))}</div>
+      </td>
+
+      <td>
+        <div class="details">${esc(correctAnswersList(team))}</div>
+      </td>
+
+      <td>
+        <div class="details">${esc(answersWrittenList(team))}</div>
+      </td>
+
+      <td>
+        <div class="details">${esc(attemptsList(team))}</div>
+      </td>
+
+      <td><b>${team.totalPoints}</b> <span class="muted">/ 15</span></td>
+
+      <td>
+        <b>${esc(timeTakenLabel(team))}</b>
+      </td>
+    </tr>
+  `).join("") ||
+  '<tr><td colspan="9" class="muted">No teams match this filter.</td></tr>';
+}
+
+// Protect CSV cells from spreadsheet formula injection.
+function csvCell(value) {
+  let text = String(value ?? "");
+
+  if (/^[=+\-@]/.test(text)) {
+    text = "'" + text;
+  }
+
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  const headers = [
+    "team_id",
+    "team_name",
+    "round_id",
+    "status",
+    "assigned_questions",
+    "final_answers",
+    "total_attempts",
+    "points",
+    "time_taken_seconds",
+    "time_taken"
+  ];
+
+  const rows = currentTeams.map(team => [
+    team.teamId || "",
+    team.teamName || "",
+    team.roundId || ROUND_ID,
+    team.status,
+    team.assignedQuestions.join(";"),
+    team.assignedQuestions.map(id => `${id}=${team.finalAnswers[id] ?? ""}`).join(";"),
+    team.totalAttempts,
+    team.totalPoints,
+    team.timeTakenSeconds ?? "",
+    formatDuration(team.timeTakenSeconds) || ""
+  ]);
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(csvCell).join(","))
+    .join("\r\n");
+
+  const blob = new Blob(
+    ["﻿" + csv],
+    { type: "text/csv;charset=utf-8;" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "temporal-lock-round4-results.csv";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+$("exportBtn").addEventListener("click", exportCsv);
+</script>
+
+</body>
+</html>

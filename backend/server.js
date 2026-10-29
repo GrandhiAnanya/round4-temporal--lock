@@ -31,6 +31,8 @@ app.use(
 
       const allowed =
         allowedOrigins.includes(origin) ||
+        // Local admin page opened directly from disk (file://).
+        origin === "null" ||
         /^http:\/\/localhost(:\d+)?$/.test(origin) ||
         /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
 
@@ -696,6 +698,50 @@ app.get("/api/R4/export.csv", async (req, res) => {
     return res.send("\uFEFF" + csv);
   } catch (error) {
     console.error("CSV export error:", error);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ---------- ADMIN RESULTS (JSON) ----------
+
+// Simple admin login, same as earlier rounds: "admin" in both fields.
+app.post("/api/R4/admin/results", async (req, res) => {
+  const teamId = String(req.body.team_id || "").trim().toLowerCase();
+  const teamName = String(req.body.team_name || "").trim().toLowerCase();
+
+  if (teamId !== "admin" || teamName !== "admin") {
+    return res.status(401).json({
+      error: "unauthorized",
+      message: "Access denied. Enter admin in both fields."
+    });
+  }
+
+  try {
+    const snapshot = await teams.get();
+
+    const results = snapshot.docs.map((doc) => {
+      const team = doc.data();
+
+      return {
+        team_id: team.teamId,
+        team_name: team.teamName,
+        round_id: ROUND_ID,
+        status: team.status || "",
+        assigned_questions: team.assignedQuestionIds || [],
+        final_answers: team.finalAnswers || {},
+        question_scores: team.questionScores || {},
+        attempts_by_question: team.attemptsByQuestion || {},
+        total_attempts: team.totalAttempts || 0,
+        points: team.points || 0,
+        started_at: team.startedAt || null,
+        completed_at: team.completedAt || null,
+        time_taken_seconds: team.timeTakenSeconds ?? null
+      };
+    });
+
+    return res.json({ ok: true, teams: results });
+  } catch (error) {
+    console.error("Admin results error:", error);
     return res.status(500).json({ error: "server_error" });
   }
 });
