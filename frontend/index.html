@@ -38,7 +38,7 @@ button,input{font:inherit;color:inherit}
 .chip{border:1px solid var(--line-2);padding:5px 12px;font-size:.82rem;color:var(--muted);background:var(--panel)}
 .chip b{color:var(--text);font-weight:600}
 .timer{font-family:var(--display);font-size:.95rem;color:var(--cyan);text-align:right;font-variant-numeric:tabular-nums}
-.timer::before{content:"Elapsed";font-family:var(--body);font-size:.62rem;color:var(--muted);margin-right:10px;letter-spacing:.1em}
+.timer::before{content:"Time left";font-family:var(--body);font-size:.62rem;color:var(--muted);margin-right:10px;letter-spacing:.1em}
 .timer.low{color:var(--bad);text-shadow:0 0 12px rgba(255,77,109,.6);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:.45}}
 .net{font-size:.78rem;padding:4px 10px;border:1px solid var(--line-2);color:var(--muted)}
@@ -159,13 +159,12 @@ dialog h2{font-size:1.2rem;margin-bottom:6px}
 .orow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .ostat{margin-top:14px;font-size:.88rem;color:var(--muted);white-space:pre-wrap}
 
-
 /* circuit builder */
 .builder{margin:22px 0;border:1px solid var(--line);background:var(--panel)}
 .bhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2)}
 .bhead b{font-family:var(--display);font-size:.85rem}
 .bhead span{font-size:.8rem;color:var(--muted)}
-.palette{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.palette-label{padding:9px 16px 0;color:var(--muted);font-size:.78rem;letter-spacing:.03em}.palette{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px 12px;border-bottom:1px solid var(--line)}
 .pal{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;padding:8px 12px;border:1px solid var(--line-2);background:#0a0816;font-size:.84rem;color:var(--text)}
 .pal:hover{border-color:var(--cyan)}
 .pal.gate{font-family:var(--display);font-weight:700;font-size:.76rem;color:var(--cyan)}
@@ -258,6 +257,56 @@ input:focus{box-shadow:0 0 0 3px rgba(184,255,60,.18),0 0 18px rgba(184,255,60,.
 .hintbox{border-left-color:var(--cyan);background:rgba(184,255,60,.06);color:#e6f5c4}
 .final h1 span{text-shadow:0 0 30px currentColor}
 dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
+
+.qnav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.qnav button{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:10px 9px;text-align:left;cursor:pointer}
+.qnav button:hover{border-color:var(--cyan);color:var(--text)}
+.qnav button.current{border-color:var(--pink);color:var(--text);box-shadow:0 0 12px rgba(157,107,255,.18)}
+.qnav button.solved{border-color:rgba(70,240,200,.55);color:var(--ok)}
+.qnav button .qstatus{display:block;font-size:.68rem;margin-top:2px}
+.submitnote{margin-top:8px;font-size:.78rem;color:var(--muted)}
+@media (max-width:560px){.qnav{grid-template-columns:1fr}}
+
+.round-submit-wrap{
+  margin:18px 0 8px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.submit-round-btn{
+  min-width:190px;
+  padding:14px 24px;
+  border:1px solid rgba(170,90,255,.8);
+  background:linear-gradient(135deg,#8b4dff,#b15cff);
+  color:#fff;
+  font-weight:800;
+  letter-spacing:.08em;
+  cursor:pointer;
+  box-shadow:0 0 18px rgba(150,80,255,.18);
+}
+.submit-round-btn:hover{
+  filter:brightness(1.08);
+  box-shadow:0 0 24px rgba(150,80,255,.30);
+}
+.round-submit-note{
+  color:#aaa2c7;
+  font-size:13px;
+}
+
+.hard-submit-wrap{
+  margin:18px 0 8px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.hard-submit-note{
+  color:#aaa2c7;
+  font-size:13px;
+  max-width:62ch;
+}
+
 </style>
 </head>
 <body>
@@ -267,7 +316,7 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
   <div class="meta">Round 04 · Fragment 04 · Year 3026</div>
   <div class="spacer"></div>
   <div class="chip hidden" id="teamchip">Team <b id="chipid"></b> · <span id="chipname"></span></div>
-  <div class="timer hidden" id="timer" aria-label="Elapsed time">00:00</div>
+  <div class="timer hidden" id="timer" aria-label="Time remaining">00:00</div>
   <div class="net" id="net">Checking server…</div>
 </header>
 
@@ -283,8 +332,8 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
   <form class="card" id="loginform" autocomplete="off" novalidate>
     <h2 style="font-size:1.1rem">Register your crew</h2>
     <label for="teamid">Team ID</label>
-    <input type="text" id="teamid" placeholder="BLUE7 or TEAM-A" maxlength="30" autocapitalize="characters" spellcheck="false">
-    <div class="help">Choose the Team ID provided by your organizers. Letters, numbers, hyphens and underscores are accepted.</div>
+    <input type="text" id="teamid" placeholder="Your Team ID" maxlength="40" spellcheck="false">
+    <div class="help">Use the ID given by the organizers. It stays the same in all four rounds.</div>
     <label for="teamname">Team name</label>
     <input type="text" id="teamname" placeholder="e.g. Quantum Drifters" maxlength="40">
     <div class="err" id="loginerr" role="alert"></div>
@@ -297,17 +346,18 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
   <span class="tag">Mission briefing</span>
   <h1 class="hero-title" style="font-size:clamp(1.8rem,5vw,3.2rem);margin-top:8px">Read this before the clock starts.</h1>
   <ol>
-    <li><i>01</i><div><b>Read the Chrono-Core condition</b><span>Each question describes the condition and gives the test table. Work out which gates you need.</span></div></li>
-    <li><i>02</i><div><b>Connect the circuit</b><span>Drag the switches, gates and the output lamp onto the circuit board and wire them together. ON = 1, OFF = 0.</span></div></li>
-    <li><i>03</i><div><b>Run the tests and read the outputs</b><span>Your circuit must match the connections in the question. Press Run all tests to unlock the code box and see every output. Read them top to bottom to form a binary code.</span></div></li>
-    <li><i>04</i><div><b>Enter only the code</b><span>Do not type gate names. Keep leading zeros. A correct code unlocks the next question.</span></div></li>
+    <li><i>01</i><div><b>Infer the circuit from the condition</b><span>The story and test table are your clues. The connection answer is not shown. Work out which switches and logic gates are needed.</span></div></li>
+    <li><i>02</i><div><b>Build the circuit</b><span>All available components are shown, including distractors. Drag the parts you need onto the board and wire them together. ON = 1, OFF = 0.</span></div></li>
+    <li><i>03</i><div><b>Run the tests</b><span>Press Run all tests. If the circuit structure and outputs are valid, the activation-code box unlocks. Read outputs from top to bottom.</span></div></li>
+    <li><i>04</i><div><b>Work in any order</b><span>You receive one Easy, one Medium and one Hard question. Use the question tabs to move freely between them; solving one does not automatically force the next.</span></div></li>
+    <li><i>05</i><div><b>Exit from the Hard question</b><span>You have 10 minutes for the whole round. The submit button appears only on the Hard question. It exits the game and records your current score, even if some questions are unsolved.</span></div></li>
   </ol>
   <div class="gatekey" aria-label="Gate reference">
     <div><b>AND</b>1 only if all inputs are 1</div>
     <div><b>OR</b>1 if any input is 1</div>
     <div><b>NOT</b>flips the input</div>
   </div>
-  <p class="note" style="margin:-8px 0 22px">You will receive one Easy, one Medium, and one Hard question. The timer counts up to record your elapsed time; there is no countdown. Navigate between all three questions. Your final submission is available on Question 3.</p>
+  <p class="note" style="margin:-8px 0 22px">3 questions: 1 easy, 1 medium, 1 hard. You have 10 minutes for the whole round. Work on them in any order. The submit button appears only on the Hard question and exits the game.</p>
   <button class="btn" id="beginbtn">Start the mission</button>
 </section>
 
@@ -347,7 +397,7 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
 
 <dialog id="orgdlg">
   <h2>Organizer panel</h2>
-  <p class="note" style="margin-top:0">Download the results of every team in this round as one CSV.</p>
+  <p class="note" style="margin-top:0">Download the results of every team in this round as one CSV. The CSV includes login_at and logout_at timestamps; logout_at is the time the team exits the game or the round timer expires.</p>
   <label for="orgkey" style="margin-top:14px">Organizer key</label>
   <input type="password" id="orgkey" autocomplete="off">
   <div class="orow">
@@ -361,85 +411,465 @@ dialog{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%)}
 <script>
 (function(){
 'use strict';
-const ROUND_ID='R4';
-const API ="https://round4-temporal-lock-backend.onrender.com";
-const LS_STATE='lt_R4_frontend_v1';
-const LEVELS=['easy','medium','hard'];
-const $=id=>document.getElementById(id);
-const pad=n=>String(n).padStart(2,'0');
-const fmt=s=>pad(Math.floor(s/60))+':'+pad(s%60);
-const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function show(id){['s-login','s-brief','s-play','s-final'].forEach(s=>$(s).classList.toggle('hidden',s!==id));window.scrollTo(0,0);}
-function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
-function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-async function api(path,opts){const r=await fetch(API+'/api/R4'+path,Object.assign({headers:{'Content-Type':'application/json'}},opts||{}));let data={};try{data=await r.json();}catch(e){}if(!r.ok){const e=new Error(data.message||data.error||('Request failed ('+r.status+')'));e.status=r.status;e.data=data;throw e;}return data;}
-function setNet(ok,msg){const n=$('net');n.textContent=msg||(ok?'Shared storage connected':'Server unavailable');n.className='net '+(ok?'ok':'warn');}
-async function ping(){try{await api('/health',{headers:{}});setNet(true);}catch(e){setNet(false,'Server unavailable');}}
-let S=null, QUESTIONS=[], tick=null, saveTimer=null;
-const POOL=['Power A','Power B','Power','Power Safety','Navigation','Navigation Safety','Shield','Emergency Override','Override','Engine','Cooling System','Hyperdrive'];
-function stateFromServer(data){
-  const qs=data.assigned_questions||[];
-  return {teamId:data.team_id,teamName:data.team_name,assigned:qs,startedAt:data.started_at||null,status:data.status||'registered',q:Math.min(2,Number(data.current_question_index)||0),drafts:Object.assign({},data.draft_answers||{}),attemptsByQuestion:data.attempts_by_question||{},totalAttempts:data.total_attempts||0,circuits:{},points:data.points||0,finished:data.status==='completed',timeTakenSeconds:data.time_taken_seconds};
+
+/* ---------- CONFIG ---------- */
+const ROUND_ID = 'R4';
+const ROUND_TITLE = 'The Temporal Lock';
+const API = new URLSearchParams(location.search).get('api')
+          || (location.protocol === 'file:' ? 'http://127.0.0.1:5000' : 'https://round4-temporal-lock-backend.onrender.com');
+const HASHES = {"Q1":3390009574621943,"Q2":4221696555766708,"Q3":7104647745381326,"Q4":3276310940388882,"Q5":5584033121880947,"Q6":1551577527217973,"Q7":5656082405253880,"Q8":3702516441001789,"Q9":8093823291815351,"Q10":4742439711243330};
+const SALT = 'TL-R4-chrono-3026';
+const LS_STATE = 'lt_' + ROUND_ID + '_state_v7';
+const LS_LOCAL = 'lt_' + ROUND_ID + '_localresults';
+
+/* ---------- QUESTIONS ---------- */
+const T = (cols, rows) => ({cols, rows});
+const ALL_QUESTIONS = [
+  { id:'Q1', level:'easy', title:'Power Check',
+    story:'The Chrono-Core’s power supply is being tested. Both power switches must be ON for the system to activate.',
+    expect:['and','Power Switch A','Power Switch B'],
+    out:'Core output',
+    t:T(['Power Switch A','Power Switch B'],[[0,0],[0,1],[1,0],[1,1]]),
+    hint:'Both power inputs must be ON at the same time.' },
+
+  { id:'Q2', level:'easy', title:'Emergency Beacon',
+    story:'The emergency beacon can be activated by either backup system.',
+    expect:['or','Backup Navigation','Backup Shield'],
+    out:'OR output',
+    t:T(['Backup Navigation','Backup Shield'],[[0,0],[0,1],[1,0],[1,1]]),
+    hint:'At least one of the two backup inputs must be ON.' },
+
+  { id:'Q3', level:'easy', title:'Override Reversal',
+    story:'The Core must reverse the Emergency Override signal. When Override is OFF, the reversed signal should be ON.',
+    expect:['not','Emergency Override'],
+    out:'NOT output',
+    t:T(['Emergency Override'],[[0],[1]]),
+    hint:'A NOT gate produces the opposite value of its input.' },
+
+  { id:'Q4', level:'easy', title:'Safety Chamber',
+    story:'The time-travel chamber activates only when both safety switches are ON.',
+    expect:['and','Power Safety','Navigation Safety'],
+    out:'AND output',
+    t:T(['Power Safety','Navigation Safety'],[[0,0],[0,1],[1,0],[1,1]]),
+    hint:'Only the row with both safety inputs ON should produce 1.' },
+
+  { id:'Q5', level:'medium', title:'Disable the Override',
+    story:'The Core requires Main Power ON and Emergency Override single must be reversed.',
+    expect:['and','Main Power',['not','Emergency Override']],
+    out:'Core output',
+    t:T(['Main Power','Emergency Override'],[[0,0],[0,1],[1,0],[1,1]]),
+    hint:'Power must be ON while Emergency Override must be OFF.' },
+
+  { id:'Q6', level:'medium', title:'Restore Navigation',
+    story:'Navigation can be restored through either backup system, but Main Power must also be ON.',
+    expect:['and',['or','Backup Navigation','Backup Shield'],'Main Power'],
+    out:'Core output',
+    t:T(['Backup Navigation','Backup Shield','Main Power'],[[0,0,0],[0,1,1],[1,0,1],[1,1,1]]),
+    hint:'At least one backup must be ON, and Power must also be ON.' },
+
+  { id:'Q7', level:'medium', title:'Chrono-Core Conditions',
+    story:'The Core activates only when Power is ON, Navigation OR Shield is ON, and Emergency Override must be reversed.',
+    expect:['and','Power',['or','Navigation','Shield'],['not','Emergency Override']],
+    out:'Core output',
+    t:T(['Power','Navigation','Shield','Emergency Override'],
+        [[0,0,0,0],[1,0,1,0],[1,1,0,0],[1,1,1,1]]),
+    hint:'All three conditions must hold in the same test row.' },
+
+  { id:'Q8', level:'medium', title:'Backup Logic Repair',
+    story:'A damaged backup circuit must activate only when both Backup Navigation and Backup Shield are ON.',
+    expect:['and','Backup Navigation','Backup Shield'],
+    out:'AND output',
+    t:T(['Backup Navigation','Backup Shield'],[[0,0],[0,1],[1,0],[1,1]]),
+    hint:'Both backup inputs must be ON at the same time.' },
+
+  { id:'Q9', level:'hard', title:'Reconstruct the Temporal Lock',
+    story:'The original circuit has been erased. Mission Control recovered the conditions: Main Power must be ON; Navigation OR Shield must be ON; Emergency Override must be reversed.',
+    expect:['and','Main Power',['or','Navigation','Shield'],['not','Emergency Override']],
+    out:'Core output',
+    t:T(['Main Power','Navigation','Shield','Emergency Override'],
+        [[0,0,0,0],[1,1,0,0],[1,0,1,1],[1,1,1,0]]),
+    hint:'Check every test row against Main Power, the backup condition, and the reversed Emergency Override.' },
+
+  { id:'Q10', level:'hard', title:'Final Chrono-Core Activation',
+    story:'The final Time Fragment is inside the Core. Build the activation circuit using the same recovered conditions: Power Switch A must be ON; at least one of Navigation or Shield ON; Emergency Override must be reversed.',
+    expect:['and','Power Switch A',['or','Navigation','Shield'],['not','Emergency Override']],
+    out:'Core output',
+    t:T(['Power Switch A','Navigation','Shield','Emergency Override'],
+        [[0,1,1,0],[1,0,0,0],[1,1,0,0],[1,0,1,0],[1,1,1,1]]),
+    hint:'Read every row carefully and check all three recovered conditions.' }
+];
+
+const N = 3;                    // questions per team: one easy, one medium, one hard
+const TIME_LIMIT = 600;         // seconds for the whole round (10 minutes)
+const LEVELS = ['easy','medium','hard'];
+let QUESTIONS = [];             // this team's 3 questions, set by loadSet()
+function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function pickSet(teamId){
+  const rnd = mulberry(h53('R4-set-' + teamId) >>> 0);
+  return LEVELS.map(l => { const pool = ALL_QUESTIONS.filter(q => q.level === l); return pool[Math.floor(rnd() * pool.length)].id; });
 }
-function elapsed(){if(!S||!S.startedAt)return 0;const start=Date.parse(S.startedAt);return Math.max(0,Math.floor((Date.now()-start)/1000));}
-function renderClock(){ $('timer').textContent=fmt(elapsed()); }
-function saveLocal(){if(S)lsSet(LS_STATE,S);}
-async function saveProgress(){if(!S||S.finished||!S.startedAt)return;try{await api('/progress',{method:'POST',body:JSON.stringify({team_id:S.teamId,current_question_index:S.q,draft_answers:S.drafts})});setNet(true);}catch(e){setNet(false,'Progress not synced');}}
-function scheduleSave(){saveLocal();clearTimeout(saveTimer);saveTimer=setTimeout(saveProgress,350);}
-$('loginform').addEventListener('submit',async ev=>{
- ev.preventDefault();const err=$('loginerr');err.textContent='';
- const id=$('teamid').value.trim().toUpperCase().replace(/\s+/g,'-');const name=$('teamname').value.trim().replace(/\s+/g,' ');
- if(!/^[A-Z0-9][A-Z0-9_-]{0,29}$/.test(id)){err.textContent='Use 1–30 letters, numbers, hyphens or underscores. Start with a letter or number.';return;}
- if(name.length<2){err.textContent='Enter a team name with at least 2 characters.';return;}
- const btn=$('loginbtn');btn.disabled=true;btn.textContent='Connecting…';
- try{
-   const data=await api('/register',{method:'POST',body:JSON.stringify({team_id:id,team_name:name})});
-   S=stateFromServer(data);QUESTIONS=S.assigned;
-   const saved=lsGet(LS_STATE,null);
-   if(saved&&saved.teamId===id){S.drafts=Object.assign({},S.drafts,saved.drafts||{});S.circuits=saved.circuits||{};S.q=Math.min(2,saved.q||S.q);}
-   QUESTIONS.forEach(q=>{if(!(q.id in S.drafts))S.drafts[q.id]='';});
-   $('chipid').textContent=S.teamId;$('chipname').textContent=S.teamName;$('teamchip').classList.remove('hidden');saveLocal();setNet(true);
-   if(S.finished){showFinal({points:S.points,time_taken_seconds:S.timeTakenSeconds,already_submitted:true});return;}
-   if(S.startedAt){startPlay();}else show('s-brief');
- }catch(e){err.textContent=e.message==='name_mismatch'?'This Team ID is registered under another name.':e.message;setNet(false,'Could not register');}
- finally{btn.disabled=false;btn.textContent='Enter the Chrono-Core';}
+function loadSet(){
+  if(!S.set || S.set.length !== N) S.set = pickSet(S.teamId);
+  QUESTIONS = S.set.map(id => ALL_QUESTIONS.find(q => q.id === id)).filter(Boolean);
+  if(QUESTIONS.length !== N) S.set = pickSet(S.teamId);
+  QUESTIONS = S.set.map(id => ALL_QUESTIONS.find(q => q.id === id));
+}
+// Component labels mirror the participant-facing names used in the Round 4 source document.
+// Descriptive labels such as Backup Navigation and Backup Shield are intentional clues.
+const POOL = [
+  'Power Switch A','Power Switch B','Main Power','Power',
+  'Power Safety','Backup Navigation','Backup Shield',
+  'Navigation','Navigation Safety','Shield','Emergency Override',
+  'Engine','Cooling System','Hyperdrive'
+];
+
+// Migrate short labels from the earlier prototype so previously saved boards stay usable.
+const COMPONENT_LABEL_MIGRATIONS = {
+  'Power A':'Power Switch A',
+  'Power B':'Power Switch B',
+  'Override':'Emergency Override',
+  'Backup Nav':'Backup Navigation'
+};
+
+const $ = id => document.getElementById(id);
+function h53(str, seed){seed=seed||0;let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
+const isRight = (qid, code) => HASHES[qid] === h53(SALT + qid + code);
+const pad = n => String(n).padStart(2,'0');
+const fmt = s => pad(Math.floor(s/60)) + ':' + pad(s%60);
+const nowIso = () => new Date().toISOString();
+function show(id){ ['s-login','s-brief','s-play','s-final'].forEach(s => $(s).classList.toggle('hidden', s !== id)); window.scrollTo(0,0); }
+function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+let S = null;
+let online = false;
+let tick = null;
+
+function newState(teamId, teamName){
+  return { teamId, teamName, startedAt:null, q:0, codes:Array(N).fill(''), attempts:Array(N).fill(0),
+           wrong:0, hintsUsed:0, hintShown:Array(N).fill(false), finished:false, submitted:false, finishedAt:null,
+           synced:false, circuits:{}, set:pickSet(teamId), timedOut:false };
+}
+const saveState = () => S && lsSet(LS_STATE, S);
+const elapsed = () => {
+  const end = S.finishedAt || Date.now();
+  return Math.max(0, Math.round((end - S.startedAt)/1000));
+};
+const remaining = () => Math.max(0, Math.ceil((S.startedAt + TIME_LIMIT*1000 - Date.now())/1000));
+function renderClock(){ const r = remaining(), t = $('timer'); t.textContent = fmt(r); t.classList.toggle('low', r <= 60); }
+function timeUp(){
+  if(!S || S.finished) return;
+  S.finished = true; S.timedOut = true; S.submitted = false; S.finishedAt = S.startedAt + TIME_LIMIT*1000; saveState();
+  sync('completed').then(() => { finish(); });
+}
+
+async function api(path, opts){
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 10000);
+  try{
+    const r = await fetch(API + '/api/' + ROUND_ID + path, Object.assign({signal:ctl.signal}, opts||{}));
+    let data = {}; try{ data = await r.json(); }catch(e){}
+    return { status:r.status, ok:r.ok, data };
+  } finally { clearTimeout(to); }
+}
+function setNet(ok){
+  online = ok; const n = $('net');
+  n.textContent = ok ? 'Shared storage connected' : 'Server unavailable';
+  n.className = 'net ' + (ok ? 'ok' : 'warn');
+}
+async function ping(){ try{ const r = await api('/health'); setNet(r.ok); }catch(e){ setNet(false); } }
+function answerMap(){
+  const out = {};
+  QUESTIONS.forEach((q,i) => { out[q.id] = S.codes[i] || ''; });
+  return out;
+}
+function payload(status){
+  const responses = QUESTIONS.map((q,i) => S.codes[i] ? q.id + '=' + S.codes[i] : null).filter(Boolean).join(';');
+  return {
+    team_id:S.teamId, team_name:S.teamName, round_id:ROUND_ID, status,
+    responses, completion_time: status === 'completed' ? elapsed() : '',
+    started_at:S.startedAt ? new Date(S.startedAt).toISOString() : '',
+    login_at:S.loginAt ? new Date(S.loginAt).toISOString() : '',
+    logout_at:(status === 'completed' && S.finishedAt) ? new Date(S.finishedAt).toISOString() : '',
+    assigned_questions:S.set.join(','),
+    questions_completed:S.codes.filter(Boolean).length,
+    total_score:getRoundScore(), max_score:N*5,
+    submitted_at:(status === 'completed' && S.submitted && S.finishedAt) ? new Date(S.finishedAt).toISOString() : '',
+    total_attempts:S.attempts.reduce((a,b) => a+b, 0), wrong_attempts:S.wrong, hints_used:S.hintsUsed,
+    timed_out:S.timedOut ? 1 : 0,
+    attempts_per_question:QUESTIONS.map((q,i) => q.id + '=' + S.attempts[i]).join(';')
+  };
+}
+function stashLocal(p){
+  const all = lsGet(LS_LOCAL, {});
+  all[p.team_id] = Object.assign({}, p, { submitted_at: p.status === 'completed' ? (all[p.team_id] && all[p.team_id].submitted_at || nowIso()) : '' });
+  lsSet(LS_LOCAL, all);
+}
+async function sync(status){
+  const p = payload(status); stashLocal(p);
+  try{
+    let r;
+    if(status === 'completed'){
+      r = await api('/finish', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        team_id:S.teamId,
+        current_question_index:S.q,
+        answers:answerMap(),
+        timed_out:!!S.timedOut
+      }) });
+    } else {
+      r = await api('/progress', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        team_id:S.teamId,
+        current_question_index:S.q,
+        draft_answers:answerMap()
+      }) });
+    }
+    setNet(r.ok || r.status === 409);
+    if(r.ok){
+      if(status === 'completed'){
+        S.synced = true;
+        if(r.data.completed_at) S.finishedAt = Date.parse(r.data.completed_at);
+        if(Number.isFinite(r.data.points)) S.points = r.data.points;
+        if(Number.isFinite(r.data.time_taken_seconds)) S.timeTakenSeconds = r.data.time_taken_seconds;
+        saveState();
+      }
+      return true;
+    }
+    return r.status === 409;
+  }catch(e){ setNet(false); return false; }
+}
+
+$('loginform').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const err = $('loginerr'); err.textContent = '';
+  const id = $('teamid').value.trim().toUpperCase();
+  const name = $('teamname').value.trim().replace(/\s+/g,' ');
+  if(id.length < 1){ err.textContent = 'Enter your Team ID.'; return; }
+  if(name.length < 2){ err.textContent = 'Enter your team name (at least 2 characters).'; return; }
+  const btn = $('loginbtn'); btn.disabled = true; btn.textContent = 'Contacting server…';
+  try{
+    const r = await api('/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id:id, team_name:name}) });
+    if(r.status === 409){
+      const m = { name_mismatch:'That Team ID is registered under a different team name. Use the original name.' };
+      err.textContent = m[r.data.error] || 'This registration was rejected by the server.'; return;
+    }
+    if(!r.ok){ err.textContent = (r.data && r.data.message) || 'Server rejected the registration.'; setNet(false); return; }
+    setNet(true);
+    const remote = r.data || {};
+    const remoteIds = Array.isArray(remote.assigned_questions)
+      ? remote.assigned_questions.map(q => typeof q === 'string' ? q : q.id).filter(Boolean)
+      : [];
+    const saved = lsGet(LS_STATE, null);
+    if(saved && saved.teamId === id){
+      S = saved;
+      S.teamName = name;
+      S.circuits = S.circuits || {};
+      if(remoteIds.length === N) S.set = remoteIds;
+      if(remote.started_at) S.startedAt = Date.parse(remote.started_at);
+      if(remote.current_question_index != null) S.q = Math.min(2, Number(remote.current_question_index)||0);
+      if(remote.draft_answers) S.codes = S.set.map(qid => remote.draft_answers[qid] || S.codes[S.set.indexOf(qid)] || '');
+      if(remote.status === 'completed'){
+        S.finished = true; S.submitted = true; S.synced = true;
+        S.finishedAt = remote.completed_at ? Date.parse(remote.completed_at) : Date.now();
+        S.points = remote.points || 0; S.timeTakenSeconds = remote.time_taken_seconds;
+      }
+      loadSet();
+    } else {
+      S = newState(id, name);
+      if(remoteIds.length === N) S.set = remoteIds;
+      loadSet();
+      if(remote.started_at){
+        S.startedAt = Date.parse(remote.started_at);
+        const drafts = remote.draft_answers || {};
+        S.codes = S.set.map(qid => drafts[qid] || '');
+        S.q = Math.min(2, Number(remote.current_question_index)||0);
+      }
+      if(remote.status === 'completed'){
+        S.finished = true; S.submitted = true; S.synced = true;
+        S.finishedAt = remote.completed_at ? Date.parse(remote.completed_at) : Date.now();
+        S.points = remote.points || 0; S.timeTakenSeconds = remote.time_taken_seconds;
+      }
+    }
+    if(!S.loginAt) S.loginAt = Date.now();
+    saveState();
+    $('chipid').textContent = S.teamId; $('chipname').textContent = S.teamName; $('teamchip').classList.remove('hidden');
+    if(S.finished){ $('timer').classList.remove('hidden'); finish(); return; }
+    if(S.startedAt){ startPlay(); } else { show('s-brief'); }
+  } catch(e){ setNet(false); err.textContent = 'Could not reach the backend. Please try again.'; }
+  finally { btn.disabled = false; btn.textContent = 'Enter the Chrono-Core'; }
 });
-$('beginbtn').addEventListener('click',async()=>{
- const b=$('beginbtn');b.disabled=true;
- try{const data=await api('/start',{method:'POST',body:JSON.stringify({team_id:S.teamId})});S.startedAt=data.started_at;S.status=data.status;saveLocal();startPlay();}
- catch(e){$('loginerr').textContent='Could not start the round: '+e.message;setNet(false);}
- finally{b.disabled=false;}
+
+$('beginbtn').addEventListener('click', async () => {
+  const b = $('beginbtn'); b.disabled = true;
+  try{
+    const r = await api('/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id:S.teamId}) });
+    if(!r.ok) throw new Error(r.data?.error || 'Could not start the round.');
+    S.startedAt = Date.parse(r.data.started_at);
+    S.loginAt = S.loginAt || Date.now();
+    saveState(); setNet(true); startPlay();
+  }catch(e){ $('loginerr').textContent='Could not start the round: '+e.message; setNet(false); }
+  finally { b.disabled=false; }
 });
-function startPlay(){clearInterval(tick);$('timer').classList.remove('hidden');tick=setInterval(renderClock,250);renderClock();show('s-play');renderRing();renderQuestion();}
-function renderRing(){const cx=120,cy=120,r=96,gap=8,seg=360/3,span=seg-gap;const pt=a=>{const t=(a-90)*Math.PI/180;return[cx+r*Math.cos(t),cy+r*Math.sin(t)];};let svg='';for(let i=0;i<3;i++){const a0=i*seg+gap/2,a1=a0+span,p0=pt(a0),p1=pt(a1);svg+='<path class="seg'+(i===S.q?' current':'')+(i<S.q?' done':'')+'" d="M'+p0[0]+' '+p0[1]+' A'+r+' '+r+' 0 0 1 '+p1[0]+' '+p1[1]+'"/>';}svg+='<text class="ring-q" x="120" y="124" text-anchor="middle">Q'+(S.q+1)+'</text><text class="ring-of" x="120" y="146" text-anchor="middle">of 3</text>';$('ring').innerHTML=svg;document.querySelectorAll('#levels div').forEach((d,i)=>{d.classList.toggle('on',i===S.q);d.querySelector('span').textContent='Q'+(i+1);});}
+
+function startPlay(){
+  if(S.q < 0 || S.q >= N) S.q = 0;
+  clearInterval(tick);
+  if(!S.finished && remaining() <= 0){ $('timer').classList.remove('hidden'); timeUp(); return; }
+  $('timer').classList.remove('hidden');
+  tick = setInterval(() => { if(S && S.startedAt && !S.finished){ if(remaining() <= 0) timeUp(); else renderClock(); } }, 250);
+  renderClock();
+  show('s-play'); renderRing(); renderQuestion();
+}
+
+function renderRing(){
+  const cx = 120, cy = 120, r = 96, gap = 8, seg = 360/N, span = seg - gap; let svg = '';
+  const pt = a => { const t = (a-90)*Math.PI/180; return [cx + r*Math.cos(t), cy + r*Math.sin(t)]; };
+  const doneCount = S.codes.filter(Boolean).length;
+  for(let i=0;i<N;i++){
+    const a0 = i*seg + gap/2, a1 = a0 + span, p0 = pt(a0), p1 = pt(a1);
+    const cls = 'seg' + (i < doneCount ? ' done' : (i === doneCount && !S.finished ? ' current' : ''));
+    svg += '<path class="'+cls+'" d="M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+r+' '+r+' 0 0 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+'"/>';
+  }
+  const label = S.finished ? 'OPEN' : 'Q' + (S.q+1);
+  svg += '<text class="ring-q" x="120" y="124" text-anchor="middle">'+label+'</text>';
+  svg += '<text class="ring-of" x="120" y="146" text-anchor="middle">'+(S.finished ? 'lock disabled' : 'of ' + N)+'</text>';
+  const ring = $('ring'); ring.innerHTML = svg; ring.classList.toggle('open', S.finished);
+  renderQuestionNav();
+}
+function getRoundScore(){
+  return S.codes.filter(Boolean).length * 5;
+}
+function getQuestionScore(i){
+  return S.codes[i] ? 5 : 0;
+}
+function renderQuestionNav(){
+  const host = $('levels');
+  if(!host || !QUESTIONS.length) return;
+  host.className = 'qnav';
+  host.innerHTML = '<div style="grid-column:1/-1;margin-bottom:2px;font-size:.8rem;color:var(--muted)">Score: <b style="color:var(--text)">'+getRoundScore()+' / '+(N*5)+'</b> marks</div>' +
+    QUESTIONS.map((q,i) => {
+    const solved = !!S.codes[i];
+    const status = solved ? 'Solved' : (i === S.q ? 'Working' : 'Not started');
+    return '<button type="button" class="'+(i===S.q?'current ':'')+(solved?'solved':'')+'" data-qidx="'+i+'">' +
+      '<b>'+q.level.toUpperCase()+'</b> · '+q.id+'<span class="qstatus">'+status+'</span></button>';
+  }).join('');
+  host.querySelectorAll('button[data-qidx]').forEach(b => b.addEventListener('click', () => {
+    if(S.finished) return;
+    const idx = +b.dataset.qidx;
+    S.q = idx; saveState(); renderRing(); renderQuestion(); window.scrollTo(0,0);
+  }));
+}
+
 function renderQuestion(){
- const q=QUESTIONS[S.q];if(!q){$('qcard').innerHTML='<p>Could not load your assigned questions. Please refresh or contact an organizer.</p>';return;}
- const rows=q.t.rows,n=rows.length;const head='<th>Test</th>'+q.t.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th class="out">'+esc(q.out||'Core output')+'</th>';
- const body=rows.map((r,i)=>'<tr><td class="t">'+(i+1)+'</td>'+r.map(v=>'<td><span class="pill '+(v?'on':'off')+'">'+(v?'ON':'OFF')+'</span></td>').join('')+'<td class="out"><span class="bit" data-bit="'+i+'">_</span></td></tr>').join('');
- const draft=S.drafts[q.id]||'';const last=S.q===2;
- $('qcard').innerHTML='<div class="qhead"><span class="tag">Question '+(S.q+1)+' of 3</span><span class="lvl '+q.level+'">'+esc(q.level[0].toUpperCase()+q.level.slice(1))+'</span></div><h2 class="qtitle">'+esc(q.title)+'</h2><p class="story">'+esc(q.story)+'</p><div class="gatekey" aria-label="Gate reference" style="margin:18px 0 0"><div><b>AND</b>1 only if all inputs are 1</div><div><b>OR</b>1 if any input is 1</div><div><b>NOT</b>flips the input</div></div><div class="tablewrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div><div class="builder" id="builder"><div class="bhead"><b>Circuit board</b><span>Drag parts onto the board. Drag from a round port to another port to wire them. Click a switch to flip it.</span></div><div class="palette" id="palette"></div><div class="board" id="board"><svg id="svg" aria-label="Circuit board"></svg><div class="empty" id="boardempty">Drag the switches, a gate and the output lamp here</div></div><div class="btools"><button type="button" class="btn cyan" id="runbtn">Run all tests</button><button type="button" class="btn ghost" id="delbtn">Delete selected</button><button type="button" class="btn ghost" id="clrbtn">Clear board</button></div><div class="bmsg" id="bmsg" role="status" aria-live="polite">Build the circuit described in the question, then run the test rows.</div></div><div id="answerarea"><label for="code" style="margin-top:0">Activation code ('+n+' digits, top to bottom)</label><div class="codebox"><input type="text" id="code" inputmode="numeric" maxlength="'+n+'" placeholder="'+'0'.repeat(n)+'" value="'+esc(draft)+'"><button class="btn ghost" type="button" id="saveanswer">Save draft</button><button class="btn" type="button" id="tryanswer">Try code</button></div><div class="note">Enter only 0s and 1s. Keep leading zeros. You can revisit and change this answer before final submission.</div><div class="fb" id="fb" role="status" aria-live="polite"></div><div class="hintrow" id="hintrow"></div></div><div class="navrow" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px"><button type="button" class="btn ghost" id="prevbtn" '+(S.q===0?'disabled':'')+'>Previous question</button><button type="button" class="btn ghost" id="nextbtn" '+(last?'disabled':'')+'>Next question</button>'+(last?'<button type="button" class="btn cyan" id="submitround">Submit all answers</button>':'')+'</div>';
- initBuilder(q);
- const code=$('code');code.addEventListener('input',()=>{code.value=code.value.replace(/[^01]/g,'').slice(0,n);S.drafts[q.id]=code.value;scheduleSave();});
- $('saveanswer').addEventListener('click',()=>{const v=code.value.trim();S.drafts[q.id]=v;scheduleSave();$('fb').className='fb';$('fb').textContent='Answer saved as a draft. Final submission is available on Question 3.';});
- $('tryanswer').addEventListener('click',async()=>{const value=code.value.trim();const fb=$('fb');fb.className='fb';if(!B||!B.ranSig||B.ranSig!==sig()){fb.className='fb bad';fb.textContent='Build the circuit and run all tests before trying a code.';return;}if(value.length!==n||!/^[01]+$/.test(value)){fb.className='fb bad';fb.textContent='Enter exactly '+n+' binary digits, including leading zeros.';return;}S.drafts[q.id]=value;scheduleSave();const b=$('tryanswer');b.disabled=true;b.textContent='Checking…';try{const result=await api('/attempt',{method:'POST',body:JSON.stringify({team_id:S.teamId,question_id:q.id,code:value})});S.attemptsByQuestion=S.attemptsByQuestion||{};S.attemptsByQuestion[q.id]=result.attempts_for_question;S.totalAttempts=result.total_attempts||((S.totalAttempts||0)+1);saveLocal();fb.className='fb '+(result.correct?'good':'bad');fb.textContent=result.correct?'Correct code! It will count for 5 points if it is still correct at final submission. You can continue exploring or change it before submitting.':'Incorrect code. You can try again; no points are deducted for a wrong trial.';}catch(e){fb.className='fb bad';fb.textContent='Could not check this attempt: '+e.message;}finally{b.disabled=false;b.textContent='Try code';}});
- $('prevbtn').addEventListener('click',()=>navigate(-1));$('nextbtn').addEventListener('click',()=>navigate(1));
- if(last)$('submitround').addEventListener('click',submitRound);
+  const q = QUESTIONS[S.q], rows = q.t.rows, n = rows.length;
+  const head = '<th>Test</th>' + q.t.cols.map(c => '<th>'+c+'</th>').join('') + '<th class="out">'+q.out+'</th>';
+  const body = rows.map((r,i) => '<tr><td class="t">'+(i+1)+'</td>' +
+      r.map(v => '<td><span class="pill '+(v?'on':'off')+'">'+(v?'ON':'OFF')+'</span></td>').join('') +
+      '<td class="out"><span class="bit" data-bit="'+i+'">_</span></td></tr>').join('');
+  $('qcard').innerHTML =
+    '<div class="qhead"><span class="tag">Question '+(S.q+1)+' of '+N+'</span><span class="lvl '+q.level+'">'+q.level[0].toUpperCase()+q.level.slice(1)+'</span></div>' +
+    '<h2 class="qtitle">'+q.title+'</h2>' +
+    '<p class="story">'+q.story+'</p>' +
+    '<div class="gatekey" aria-label="Gate reference" style="margin:18px 0 0"><div><b>AND</b>1 only if all inputs are 1</div><div><b>OR</b>1 if any input is 1</div><div><b>NOT</b>flips the input</div></div>' +
+    '<div class="tablewrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>' +
+    '<div class="builder" id="builder">' +
+      '<div class="bhead"><b>Circuit board</b><span>Infer the circuit from the story and test rows. All parts are available; distractors are intentional. Drag from a round port to another port to wire them. Click a switch to flip it.</span></div>' +
+      '<div class="palette-label">Available components — names are clues</div>' +
+      '<div class="palette" id="palette"></div>' +
+      '<div class="board" id="board"><svg id="svg" aria-label="Circuit board"></svg><div class="empty" id="boardempty">Drag the switches, a gate and the output lamp here</div></div>' +
+      '<div class="btools"><button type="button" class="btn cyan" id="runbtn">Run all tests</button>' +
+      '<button type="button" class="btn ghost" id="delbtn">Delete selected</button>' +
+      '<button type="button" class="btn ghost" id="clrbtn">Clear board</button></div>' +
+      '<div class="bmsg" id="bmsg" role="status" aria-live="polite">AND and OR gates have three input ports. Unused ports are ignored.</div>' +
+    '</div>' +
+    '<form id="codeform" autocomplete="off" novalidate>' +
+      '<label for="code" style="margin-top:0">Activation code ('+n+' digits, top to bottom)</label>' +
+      '<div class="codebox"><input type="text" id="code" inputmode="numeric" maxlength="'+n+'" placeholder="'+'0'.repeat(n)+'" aria-describedby="fb">' +
+      '<button class="btn" type="submit" id="verify">Verify code</button></div>' +
+      '<div class="note lockmsg" id="lockmsg">Build the circuit you infer from the condition, then press Run all tests to unlock the code box.</div>' +
+      '<div class="note">'+(q.note ? q.note + ' ' : '')+'Enter only 0s and 1s, not gate names.</div>' +
+      '<div class="fb" id="fb" role="status" aria-live="polite"></div>' +
+      '<div class="hintrow" id="hintrow"></div>' +
+    '</form>' +
+    (q.level === 'hard' ?
+      '<div class="hard-submit-wrap">' +
+        '<button class="btn" type="button" id="hardSubmitBtn">SUBMIT &amp; EXIT GAME</button>' +
+        '<div class="hard-submit-note">Exits the game and records the current score, whether or not all questions are solved.</div>' +
+      '</div>' : '') +
+    '<div id="clearedslot"></div>';
+  const input = $('code');
+  input.addEventListener('input', () => { input.value = input.value.replace(/[^01]/g,'').slice(0,n); });
+  initBuilder(q);
+  $('codeform').addEventListener('submit', ev => { ev.preventDefault(); verify(); });
+  if(q.level === 'hard'){
+    $('hardSubmitBtn').addEventListener('click', submitHardAndExit);
+  }
+  if(S.hintShown[S.q]) showHint(true);
+  else if(S.attempts[S.q] - 0 >= 2) offerHint();
+  input.focus({preventScroll:true});
 }
-function navigate(delta){if(!S)return;S.drafts[QUESTIONS[S.q].id]=$('code')?$('code').value.trim():(S.drafts[QUESTIONS[S.q].id]||'');S.q=Math.max(0,Math.min(2,S.q+delta));saveLocal();saveProgress().catch(()=>{});renderRing();renderQuestion();window.scrollTo(0,0);}
-async function submitRound(){
- const q=QUESTIONS[S.q];if(S.q!==2){alert('Final submission is available only on Question 3.');return;}
- S.drafts[q.id]=$('code').value.trim();saveLocal();const btn=$('submitround');btn.disabled=true;btn.textContent='Submitting…';
- try{
-   const result=await api('/submit',{method:'POST',body:JSON.stringify({team_id:S.teamId,current_question_index:S.q,answers:S.drafts})});
-   S.finished=true;S.points=result.points;S.timeTakenSeconds=result.time_taken_seconds;S.status='completed';saveLocal();showFinal(result);
- }catch(e){const fb=$('fb');fb.className='fb bad';fb.textContent='Submission failed: '+e.message+'. Your answers remain saved; you can try again.';btn.disabled=false;btn.textContent='Submit all answers';}
+
+function offerHint(){
+  const row = $('hintrow'); if(!row || row.querySelector('.hintbox') || row.querySelector('button')) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = 'Show a hint';
+  b.addEventListener('click', () => showHint(false));
+  row.appendChild(b);
 }
-function showFinal(result){clearInterval(tick);$('timer').classList.add('hidden');const points=result.points??S.points??0;const sec=result.time_taken_seconds??S.timeTakenSeconds??elapsed();$('fstamp').textContent='ROUND 4 SUBMITTED';$('freveal').querySelectorAll('span')[0].textContent='TEMPORAL LOCK RESULTS';$('freveal').querySelectorAll('span')[1].textContent='TIME TAKEN: '+fmt(sec);$('freveal').querySelectorAll('span')[2].textContent='TIMELINE RESTORED';$('stats').innerHTML='<div><b>'+points+' / 15</b><span>Total points</span></div><div><b>'+fmt(sec)+'</b><span>Elapsed time</span></div><div><b>'+esc(S.teamId)+'</b><span>Team ID</span></div><div><b>'+esc(S.teamName)+'</b><span>Team name</span></div>';const sync=$('sync');sync.className='sync ok';sync.textContent='Final results saved to the Round 4 database.';$('retrybtn').classList.add('hidden');show('s-final');}
-$('retrybtn').addEventListener('click',()=>{});
-/* ---------- circuit builder ---------- */
+function showHint(restoring){
+  const q = QUESTIONS[S.q];
+  if(!restoring && !S.hintShown[S.q]){ S.hintShown[S.q] = true; S.hintsUsed++; saveState(); }
+  $('hintrow').innerHTML = '<div class="hintbox">Hint: '+q.hint+'</div>';
+}
+
+async function submitHardAndExit(){
+  if(!S || S.finished) return;
+  const q = QUESTIONS[S.q];
+  if(!q || q.level !== 'hard') return;
+  if(!confirm('Submit and exit the game now? Your current score will be recorded, even if some questions are unsolved.')) return;
+  const btn = $('hardSubmitBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'RECORDING RESULT…'; }
+  S.submitted = true;
+  S.finished = true;
+  S.timedOut = false;
+  S.finishedAt = Date.now();
+  saveState();
+  await sync('completed');
+  finish();
+}
+
+function verify(){
+  const q = QUESTIONS[S.q], n = q.t.rows.length, fb = $('fb'), val = $('code').value.trim();
+  fb.className = 'fb';
+  if(remaining() <= 0){ timeUp(); return; }
+  if(!B || !B.ranSig || B.ranSig !== sig()){ fb.classList.add('bad'); fb.textContent = 'Build the circuit and run the tests first.'; setLock(true); return; }
+  if(val.length !== n || /[^01]/.test(val)){ fb.classList.add('bad'); fb.textContent = 'Enter exactly '+n+' digits (0 or 1).'; return; }
+  S.attempts[S.q]++;
+  if(isRight(q.id, val)){
+    S.codes[S.q] = val; saveState();
+    $('codeform').classList.add('hidden');
+    $('clearedslot').innerHTML = '<div class="cleared"><div><b>QUESTION SOLVED</b><div class="note" style="margin:4px 0 0">Code '+val+' accepted. You can move to any other question.</div></div>' +
+      '<button class="btn cyan" id="backtoqnav">Choose another question</button></div>';
+    renderRing();
+    sync('in_progress');
+    $('backtoqnav').focus();
+    $('backtoqnav').addEventListener('click', () => {
+      renderRing();
+      renderQuestionNav();
+      document.querySelector('#levels button.current')?.focus();
+      window.scrollTo(0,0);
+    });
+  } else {
+    S.wrong++; saveState();
+    fb.classList.add('bad');
+    fb.textContent = 'Code rejected. Re-run the tests, read the outputs top to bottom, and try again.';
+    const c = document.querySelector('.codebox'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+    $('code').select();
+    if(S.attempts[S.q] >= 2) offerHint();
+  }
+}
+
 const GD = { and:{w:76,h:72,ins:3}, or:{w:76,h:72,ins:3}, not:{w:64,h:72,ins:1}, sw:{w:164,h:44,ins:0}, led:{w:96,h:64,ins:1} };
-let B = null;   // {q, C, sel:{k:'n'|'w',id}, drag, wiring}
+let B = null;
 const svgNS = 'http://www.w3.org/2000/svg';
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function inPos(n,i){ const g = GD[n.type]; return [n.x, n.y + (g.ins === 1 ? g.h/2 : 16 + i*20)]; }
 function outPos(n){ const g = GD[n.type]; return [n.x + g.w, n.y + (n.type === 'sw' ? 22 : g.h/2)]; }
@@ -459,7 +889,7 @@ function evalNode(id, env, seen){
   if(n.type === 'and') return ins.every(v => v === 1) ? 1 : 0;
   if(n.type === 'or')  return ins.some(v => v === 1) ? 1 : 0;
   if(n.type === 'not') return 1 - ins[0];
-  return ins[0];   // led
+  return ins[0];
 }
 
 function bmsg(t, cls){ const m = $('bmsg'); if(m){ m.textContent = t; m.className = 'bmsg' + (cls ? ' ' + cls : ''); } }
@@ -468,7 +898,16 @@ function persist(){ if(!B) return; S.circuits[B.q.id] = B.C; saveState();
 
 function initBuilder(q){
   const saved = S.circuits && S.circuits[q.id];
-  B = { q, C: saved || { nodes:[], wires:[], next:1 }, sel:null, drag:null, wiring:null, ranSig:null };
+  const migrated = saved ? JSON.parse(JSON.stringify(saved)) : null;
+  if(migrated && Array.isArray(migrated.nodes)){
+    migrated.nodes.forEach(n => {
+      if(n && n.type === 'sw' && COMPONENT_LABEL_MIGRATIONS[n.label]){
+        n.label = COMPONENT_LABEL_MIGRATIONS[n.label];
+        n.col = q.t.cols.indexOf(n.label);
+      }
+    });
+  }
+  B = { q, C: migrated || { nodes:[], wires:[], next:1 }, sel:null, drag:null, wiring:null, ranSig:null };
   const pal = $('palette');
   const parts = POOL.map(c => ({kind:'sw', name:c, text:c, cls:''}))
     .concat([{sep:true}, {kind:'and', text:'AND', cls:' gate'}, {kind:'or', text:'OR', cls:' gate'}, {kind:'not', text:'NOT', cls:' gate'},
@@ -622,7 +1061,7 @@ function drawBoard(){
     h += '<path class="wire '+(v === null ? 'vn' : 'v'+v)+(sel ? ' sel' : '')+'" d="'+d+'"/><path class="wirehit" data-wid="'+w.id+'" d="'+d+'"/>';
   });
   C.nodes.forEach(n => { h += nodeSvg(n); });
-  C.nodes.forEach(n => {     // ports on top so they win the hit test
+  C.nodes.forEach(n => {
     for(let i = 0; i < GD[n.type].ins; i++){ const p = inPos(n,i);
       h += '<circle class="porthit" data-port-kind="in" data-nid="'+n.id+'" data-port="'+i+'" cx="'+p[0]+'" cy="'+p[1]+'" r="15"/><circle class="port" cx="'+p[0]+'" cy="'+p[1]+'" r="6" pointer-events="none"/>'; }
     if(n.type !== 'led'){ const p = outPos(n);
@@ -639,12 +1078,11 @@ function drawBoard(){
   });
 }
 
-
 function sig(){ const C = B.C;
   return JSON.stringify([C.nodes.map(n => [n.id, n.type, n.label || '']), C.wires.map(w => [w.from, w.to, w.port]).sort()]); }
 function setLock(locked){
   const i = $('code'), v = $('verify'), m = $('lockmsg'); if(!i || !B) return;
-  i.disabled = locked; if(v) v.disabled = locked;
+  i.disabled = locked; v.disabled = locked;
   i.placeholder = locked ? 'Run the tests first' : '0'.repeat(B.q.t.rows.length);
   if(m) m.classList.toggle('hidden', !locked);
 }
@@ -661,7 +1099,7 @@ function tstr(t){
   if(t.t === 'sw') return 'S:' + t.v;
   if(t.t === 'not') return 'NOT(' + (t.k[0] ? tstr(t.k[0]) : '') + ')';
   if(t.t === 'and' || t.t === 'or'){ const parts = [];
-    (function add(c){ if(c.t === t.t) c.k.forEach(add); else parts.push(tstr(c)); })(t);   // nested gates of the same type count as one wide gate
+    (function add(c){ if(c.t === t.t) c.k.forEach(add); else parts.push(tstr(c)); })(t);
     return t.t.toUpperCase() + '(' + parts.sort().join(',') + ')'; }
   return '?';
 }
@@ -682,7 +1120,6 @@ function structureProblem(led){
   if(extra.length) return 'This question does not use: ' + extra.join(', ') + '. Remove it from the circuit.';
   const want = gateCounts(tree0(B.q.expect)), got = gateCounts(t);
   if(want.and !== got.and || want.or !== got.or || want.not !== got.not){
-    const parts = ['and','or','not'].filter(k => want[k]).map(k => want[k] + ' ' + k.toUpperCase());
     return 'The outputs are shown, but this circuit does not match the question. Re-read the question and check which gates it needs.'; }
   return 'The gate types are right but the wiring order is not. Re-read the question and check what feeds each gate.';
 }
@@ -695,21 +1132,79 @@ function runTests(){
   const missing = q.t.cols.filter(c => !C.nodes.some(n => n.type === 'sw' && n.label === c));
   if(missing.length){ bmsg('Place these switches on the board first: ' + missing.join(', ') + '.', 'bad'); return; }
   if(!led){ bmsg('Place the output lamp on the board and connect your circuit to it.', 'bad'); return; }
-  if(!C.wires.some(w => w.to === led.id)){ bmsg('Connect the final gate to the output lamp.', 'bad'); return; }
+  if(!C.wires.some(w => w.to === led.id)){ bmsg('Connect the last gate to the output lamp.', 'bad'); return; }
   const res = q.t.rows.map(r => evalNode(led.id, r, new Set()));
   clearBits();
-  if(res.some(v => v === null)){ bmsg('Some outputs are undefined. Check that every gate input is connected.', 'bad'); return; }
-  document.querySelectorAll('.bit').forEach((b,i) => { b.textContent = res[i]; b.classList.add('f','run'); });
+  if(res.some(v => v === null)){ bmsg('Some outputs are undefined. Check that every gate has its inputs wired and the lamp is connected to the end of the circuit.', 'bad'); return; }
+  document.querySelectorAll('.bit').forEach((b,i) => setTimeout(() => { b.textContent = res[i]; b.classList.add('f','run'); }, i * 110));
+  const problem = structureProblem(led);
+  if(problem){ B.ranSig = null; setLock(true); bmsg(problem, 'bad'); return; }
   B.ranSig = sig(); setLock(false);
-  bmsg('Tests complete. Read the outputs from top to bottom and enter the code. You can retry as many times as needed before final submission.', 'good');
+  bmsg('Circuit accepted. Read the outputs from top to bottom, then enter the code below.', 'good');
+}
+
+function finish(){
+  clearInterval(tick); B = null;
+  const p = payload('completed'), solved = S.codes.filter(Boolean).length, all = solved === N;
+  const fs = $('fstamp'), sp = $('freveal').querySelectorAll('span');
+  if(all){ fs.textContent = 'FRAGMENT 04 RECOVERED'; fs.style.borderColor = 'var(--ok)'; fs.style.color = 'var(--ok)';
+    ['TEMPORAL LOCK DISABLED','TIME FRAGMENT #4 RECOVERED','RESULTS RECORDED'].forEach((t,i) => sp[i].textContent = t); }
+  else if(S.timedOut){ fs.textContent = 'TIME EXPIRED'; fs.style.borderColor = 'var(--bad)'; fs.style.color = 'var(--bad)';
+    ['TIME EXPIRED','ROUND CLOSED','RESULTS RECORDED'].forEach((t,i) => sp[i].textContent = t); }
+  else { fs.textContent = 'ROUND SUBMITTED'; fs.style.borderColor = 'var(--ok)'; fs.style.color = 'var(--ok)';
+    ['ROUND SUBMITTED','RESULTS RECORDED','YOU MAY CLOSE THIS PAGE'].forEach((t,i) => sp[i].textContent = t); }
+  $('timer').classList.add('hidden');
+  $('stats').innerHTML = '<div><b>'+fmt(p.completion_time)+'</b><span>Time used (limit '+fmt(TIME_LIMIT)+')</span></div>' +
+    '<div><b>'+solved+' / '+N+'</b><span>Circuits solved</span></div>' +
+    '<div><b>'+p.total_attempts+'</b><span>Code attempts</span></div>' +
+    '<div><b>'+p.hints_used+'</b><span>Hints used</span></div>' +
+    '<div><b>'+S.teamId+'</b><span>'+S.teamName.replace(/</g,'&lt;')+'</span></div>';
+  show('s-final'); renderRing(); showSync();
+}
+function showSync(){
+  const el = $('sync'), rb = $('retrybtn');
+  if(S.synced){ el.className = 'sync ok'; el.textContent = 'Results saved to the organizers. You can close this page.'; rb.classList.add('hidden'); }
+  else { el.className = 'sync warn'; el.textContent = 'Results are not saved to the server yet. Keep this page open, check your network, and retry. Tell an organizer if it keeps failing.'; rb.classList.remove('hidden'); }
 }
 
 
-const dlg=$('orgdlg');function openOrg(){$('orgstat').textContent='';if(!dlg.open)dlg.showModal();$('orgkey').focus();}
-$('orgbtn').addEventListener('click',openOrg);$('orgclose').addEventListener('click',()=>dlg.close());if(location.hash==='#organizer')setTimeout(openOrg,0);document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='o'){e.preventDefault();openOrg();}});
-$('orgdl').addEventListener('click',async()=>{const st=$('orgstat');st.textContent='Fetching results…';try{const r=await fetch(API+'/api/R4/export.csv',{headers:{'X-Organizer-Key':$('orgkey').value}});if(r.status===401){st.textContent='Wrong organizer key.';return;}if(!r.ok){st.textContent='Server error ('+r.status+').';return;}const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='round4_results.csv';a.click();URL.revokeObjectURL(a.href);st.textContent='Results downloaded.';}catch(e){st.textContent='Could not reach the backend.';}});
-$('orgloc').addEventListener('click',()=>{$('orgstat').textContent='Local-only export is disabled because Round 4 results are stored centrally on the backend.';});
+$('retrybtn').addEventListener('click', async () => { $('retrybtn').disabled = true; await sync('completed'); $('retrybtn').disabled = false; showSync(); });
+window.addEventListener('online', () => { ping(); if(S && S.finished && !S.synced) sync('completed').then(showSync); });
+
+const dlg = $('orgdlg');
+function download(name, text){
+  const blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const COLS = ['team_id','team_name','round_id','assigned_questions','responses','completion_time','login_at','logout_at','submitted_at','status','started_at','questions_completed','total_score','max_score','total_attempts','wrong_attempts','hints_used','timed_out','attempts_per_question'];
+const cell = v => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+function openOrg(){ $('orgstat').textContent = ''; if(!dlg.open) dlg.showModal(); $('orgkey').focus(); }
+$('orgbtn').addEventListener('click', openOrg);
+$('orgclose').addEventListener('click', () => dlg.close());
+if(location.hash === '#organizer') setTimeout(openOrg, 0);
+document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o'){ e.preventDefault(); openOrg(); } });
+$('orgdl').addEventListener('click', async () => {
+  const st = $('orgstat'); st.textContent = 'Fetching results…';
+  try{
+    const r = await fetch(API + '/api/' + ROUND_ID + '/export.csv', { headers:{'X-Organizer-Key': $('orgkey').value} });
+    if(r.status === 401){ st.textContent = 'Wrong organizer key.'; return; }
+    if(!r.ok){ st.textContent = 'Server error (' + r.status + ').'; return; }
+    const text = (await r.text()).replace(/^\ufeff/, '');
+    download('lost_timeline_' + ROUND_ID.toLowerCase() + '_results.csv', text);
+    st.textContent = 'Downloaded. Rows: ' + Math.max(0, text.trim().split(/\r?\n/).length - 1) + ' (excluding header).';
+  }catch(e){ st.textContent = 'Could not reach the server. Check that server.py is running, or use "This device only".'; }
+});
+$('orgloc').addEventListener('click', () => {
+  const all = Object.values(lsGet(LS_LOCAL, {}));
+  if(!all.length){ $('orgstat').textContent = 'No results stored on this device yet.'; return; }
+  download('lost_timeline_' + ROUND_ID.toLowerCase() + '_device_results.csv', [COLS.join(',')].concat(all.map(o => COLS.map(c => cell(o[c])).join(','))).join('\r\n') + '\r\n');
+  $('orgstat').textContent = 'Downloaded ' + all.length + ' team(s) stored on this device. This is not the shared data for the whole event.';
+});
+
 ping();
+const saved = lsGet(LS_STATE, null);
+if(saved){ $('teamid').value = saved.teamId; $('teamname').value = saved.teamName; }
 })();
 </script>
 </body>

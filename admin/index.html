@@ -412,7 +412,7 @@ const CORRECT_ANSWERS = {
   Q5: "0010",
   Q6: "0111",
   Q7: "0110",
-  Q8: "0111",
+  Q8: "0001",
   Q9: "0101",
   Q10: "00110"
 };
@@ -459,7 +459,10 @@ function normalizeTeam(record) {
     attemptsByQuestion: record.attempts_by_question || {},
     totalAttempts: Number(record.total_attempts || 0),
     totalPoints: Number(record.points || 0),
+    loginAt: record.login_at || "",
     startedAt: record.started_at || "",
+    logoutAt: record.logout_at || record.completed_at || "",
+    submittedAt: record.submitted_at || "",
     completedAt: record.completed_at || "",
     timeTakenSeconds: time == null ? null : Number(time)
   };
@@ -718,50 +721,36 @@ function csvCell(value) {
 
 function exportCsv() {
   const headers = [
-    "team_id",
-    "team_name",
-    "round_id",
-    "status",
-    "assigned_questions",
-    "final_answers",
-    "total_attempts",
-    "points",
-    "time_taken_seconds",
-    "time_taken"
+    "team_id", "team_name", "round_id", "responses", "completion_time",
+    "login_at", "logout_at", "submitted_at", "status", "assigned_questions",
+    "final_answers", "question_scores", "points", "started_at", "completed_at",
+    "time_taken_seconds", "total_attempts", "attempts_by_question"
   ];
 
-  const rows = currentTeams.map(team => [
-    team.teamId || "",
-    team.teamName || "",
-    team.roundId || ROUND_ID,
-    team.status,
-    team.assignedQuestions.join(";"),
-    team.assignedQuestions.map(id => `${id}=${team.finalAnswers[id] ?? ""}`).join(";"),
-    team.totalAttempts,
-    team.totalPoints,
-    team.timeTakenSeconds ?? "",
-    formatDuration(team.timeTakenSeconds) || ""
-  ]);
+  const rows = currentTeams.map(team => {
+    const responses = team.assignedQuestions.map(id => `${id}=${team.finalAnswers[id] ?? ""}`).join(";");
+    return [
+      team.teamId || "", team.teamName || "", team.roundId || ROUND_ID, responses,
+      team.timeTakenSeconds ?? "", team.loginAt || "", team.logoutAt || "",
+      team.submittedAt || "", team.status || "", team.assignedQuestions.join(";"),
+      JSON.stringify(team.finalAnswers || {}), JSON.stringify(team.questionScores || {}),
+      team.totalPoints, team.startedAt || "", team.completedAt || "",
+      team.timeTakenSeconds ?? "", team.totalAttempts, JSON.stringify(team.attemptsByQuestion || {})
+    ];
+  });
 
   const csv = [headers, ...rows]
     .map(row => row.map(csvCell).join(","))
     .join("\r\n");
 
-  const blob = new Blob(
-    ["﻿" + csv],
-    { type: "text/csv;charset=utf-8;" }
-  );
-
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-
   link.href = url;
   link.download = "temporal-lock-round4-results.csv";
-
   document.body.appendChild(link);
   link.click();
   link.remove();
-
   URL.revokeObjectURL(url);
 }
 

@@ -135,6 +135,7 @@ function publicTeam(team) {
     round_id: ROUND_ID,
     assigned_questions: getAssignedQuestions(team),
     status: team.status,
+    login_at: team.loginAt || null,
     started_at: team.startedAt || null,
     completed_at: team.completedAt || null,
     time_taken_seconds: team.timeTakenSeconds ?? null,
@@ -221,6 +222,9 @@ app.post("/api/R4/register", async (req, res) => {
           return { conflict: "name_mismatch" };
         }
 
+        const loginAt = new Date().toISOString();
+        await tx.update(ref, { loginAt });
+        existing.loginAt = loginAt;
         return { team: existing, resumed: true };
       }
 
@@ -233,6 +237,7 @@ app.post("/api/R4/register", async (req, res) => {
         assignedQuestionIds: assignQuestions(),
         status: "registered",
         registeredAt: now,
+        loginAt: now,
         startedAt: null,
         completedAt: null,
         timeTakenSeconds: null,
@@ -486,6 +491,109 @@ app.post("/api/R4/attempt", async (req, res) => {
   }
 });
 
+// ---------- FINAL ROUND FINISH / HARD EXIT / TIMEOUT ----------
+
+app.post("/api/R4/finish", async (req, res) => {
+  try {
+    const result = await getTeam(req.body.team_id);
+
+    if (result.error) {
+      return res.status(result.error === "team_not_found" ? 404 : 400).json({ error: result.error });
+    }
+
+    const team = result.team;
+
+    if (team.status === "completed") {
+      return res.json({
+        ok: true,
+        already_submitted: true,
+        points: team.points || 0,
+        time_taken_seconds: team.timeTakenSeconds,
+        question_scores: team.questionScores || {},
+        completed_at: team.completedAt || null
+      });
+    }
+
+    if (!team.startedAt) {
+      return res.status(409).json({ error: "round_not_started" });
+    }
+
+    const answers = req.body.answers;
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+      return res.status(400).json({ error: "invalid_answers" });
+    }
+
+    const timedOut = Boolean(req.body.timed_out);
+    const finalAnswers = {};
+    const questionScores = {};
+    let points = 0;
+
+    for (const questionId of team.assignedQuestionIds) {
+      const question = QUESTIONS.find((q) => q.id === questionId);
+      const raw = answers[questionId];
+      const code = typeof raw === "string" ? raw.trim() : "";
+      const valid = code !== "" && /^[01]+$/.test(code);
+      const correct = valid && code === question.correctCode;
+
+      finalAnswers[questionId] = code;
+      questionScores[questionId] = { points: correct ? 5 : 0, correct };
+      if (correct) points += 5;
+    }
+
+    const startedMs = Date.parse(team.startedAt);
+    const nowMs = Date.now();
+    const completedMs = timedOut ? startedMs + 600000 : nowMs;
+    const completedAt = new Date(completedMs).toISOString();
+    const timeTakenSeconds = Math.max(0, Math.floor((completedMs - startedMs) / 1000));
+
+    const ref = teams.doc(team.teamId);
+    const saved = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error("Team not found");
+      const current = snap.data();
+
+      if (current.status === "completed") {
+        return {
+          points: current.points || 0,
+          timeTakenSeconds: current.timeTakenSeconds,
+          questionScores: current.questionScores || {},
+          completedAt: current.completedAt || null,
+          alreadySubmitted: true
+        };
+      }
+
+      tx.update(ref, {
+        status: "completed",
+        finalAnswers,
+        questionScores,
+        points,
+        completedAt,
+        logoutAt: completedAt,
+        submittedAt: timedOut ? null : completedAt,
+        timeTakenSeconds,
+        currentQuestionIndex: Math.max(0, Math.min(2, Number(req.body.current_question_index) || 0))
+      });
+
+      return { points, timeTakenSeconds, questionScores, completedAt, alreadySubmitted: false };
+    });
+
+    return res.json({
+      ok: true,
+      already_submitted: saved.alreadySubmitted,
+      round_id: ROUND_ID,
+      points: saved.points,
+      max_points: 15,
+      time_taken_seconds: saved.timeTakenSeconds,
+      question_scores: saved.questionScores,
+      completed_at: saved.completedAt,
+      timed_out: timedOut
+    });
+  } catch (error) {
+    console.error("Finish error:", error);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
 // ---------- FINAL SUBMISSION / SCORING ----------
 
 app.post("/api/R4/submit", async (req, res) => {
@@ -648,6 +756,12 @@ app.get("/api/R4/export.csv", async (req, res) => {
       "team_id",
       "team_name",
       "round_id",
+      "responses",
+      "completion_time",
+      "login_at",
+      "logout_at",
+      "submitted_at",
+      "status",
       "assigned_questions",
       "final_answers",
       "question_scores",
@@ -656,29 +770,32 @@ app.get("/api/R4/export.csv", async (req, res) => {
       "completed_at",
       "time_taken_seconds",
       "total_attempts",
-      "attempts_by_question",
-      "status"
+      "attempts_by_question"
     ];
 
     const rows = snapshot.docs.map((doc) => {
       const team = doc.data();
 
+      const finalAnswers = team.finalAnswers || {};
       const record = {
         team_id: team.teamId,
         team_name: team.teamName,
         round_id: ROUND_ID,
+        responses: (team.assignedQuestionIds || []).map(id => `${id}=${finalAnswers[id] || ""}`).join(";"),
+        completion_time: team.timeTakenSeconds ?? "",
+        login_at: team.loginAt || "",
+        logout_at: team.logoutAt || team.completedAt || "",
+        submitted_at: team.submittedAt || "",
+        status: team.status || "",
         assigned_questions: (team.assignedQuestionIds || []).join(";"),
-        final_answers: JSON.stringify(team.finalAnswers || {}),
+        final_answers: JSON.stringify(finalAnswers),
         question_scores: JSON.stringify(team.questionScores || {}),
         points: team.points || 0,
         started_at: team.startedAt || "",
         completed_at: team.completedAt || "",
         time_taken_seconds: team.timeTakenSeconds ?? "",
         total_attempts: team.totalAttempts || 0,
-        attempts_by_question: JSON.stringify(
-          team.attemptsByQuestion || {}
-        ),
-        status: team.status || ""
+        attempts_by_question: JSON.stringify(team.attemptsByQuestion || {})
       };
 
       return columns.map((column) => csvCell(record[column])).join(",");
@@ -733,8 +850,11 @@ app.post("/api/R4/admin/results", async (req, res) => {
         attempts_by_question: team.attemptsByQuestion || {},
         total_attempts: team.totalAttempts || 0,
         points: team.points || 0,
+        login_at: team.loginAt || null,
         started_at: team.startedAt || null,
         completed_at: team.completedAt || null,
+        logout_at: team.logoutAt || team.completedAt || null,
+        submitted_at: team.submittedAt || null,
         time_taken_seconds: team.timeTakenSeconds ?? null
       };
     });
